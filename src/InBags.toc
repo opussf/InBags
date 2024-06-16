@@ -4,6 +4,7 @@
 ## Author: opussf
 ## Version: @VERSION@
 ## Description: Auto manage things in your bags / bank
+## OptionalDeps: INeed
 ## SavedVariables: InBags_data
 
 InBags.lua
