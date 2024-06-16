@@ -7,13 +7,11 @@ test.outFileName = "testOut.xml"
 -- require the file to test
 ParseTOC( "../src/InBags.toc" )
 
--- addon setup
--- INEED.name = "testName"
--- INEED.realm = "testRealm"
-
 function test.before()
 end
 function test.after()
+end
+function test.test_01()
 end
 
 test.run()

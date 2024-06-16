@@ -1,0 +1,10 @@
+## Title: InBags
+## Interface: @INTERFACE@
+## Notes: InBags (@VERSION@)
+## Author: opussf
+## Version: @VERSION@
+## Description: Auto manage things in your bags / bank
+## SavedVariables: InBags_data
+
+InBags.lua
+InBags.xml
