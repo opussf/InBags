@@ -380,6 +380,10 @@ InBags.commandList = {
 	},
 	["list"] = {
 		["func"] = InBags.List,
-		["help"] = {"", "List the tracked items."},
-	}
+		["help"] = {"", "List the tracked items"},
+	},
+	["rm"] = {
+		["func"] = InBags.Delete,
+		["help"] = {"ItemLink", "Stop tracking item"},
+	},
 }
