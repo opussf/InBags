@@ -10,7 +10,7 @@ xsi:schemaLocation="http://www.blizzard.com/wow/ui/
 				self:Hide();
 			</OnLoad>
 			<OnUpdate>
-				InBags.OnUpdate(arg1);
+				InBags.OnUpdate(arg1)
 			</OnUpdate>
 			<OnEvent>
 				InBags[event](self, ...)
