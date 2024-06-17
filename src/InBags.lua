@@ -63,6 +63,7 @@ function InBags.GetFirstOpenSlot()
 end
 function InBags.BANKFRAME_OPENED()
 	InBags.bankOpen = true
+	InBags.splitItems = nil
 	InBags.Print( "Bank opened" )
 
 	-- make action structure
@@ -99,6 +100,7 @@ function InBags.BANKFRAME_OPENED()
 						if targetBag then
 							-- print( "Use ("..targetBag..", "..targetSlot..") as temp spot." )
 							C_Container.SplitContainerItem( bag, slot, itemStruct.stackCount - InBags.actions[itemStruct.itemID].toBank )
+							InBags.splitItems = true
 							PutItemInBag( targetBag + 30 )
 							ClearCursor()
 							C_Container.UseContainerItem( bag, slot )
@@ -117,31 +119,29 @@ function InBags.BANKFRAME_OPENED()
 			if ( itemStruct ) then
 				if (InBags.me[itemStruct.itemID]) then
 					-- print( itemStruct.hyperlink.." is in ("..bag..", "..slot..") "..itemStruct.stackCount )
-					--inBags[itemStruct.itemID] = inBags[itemStruct.itemID] or GetItemCount( itemStruct.itemID, false ) -- only in bags
+					inBags[itemStruct.itemID] = inBags[itemStruct.itemID] or GetItemCount( itemStruct.itemID, false ) -- only in bags
 					inBags[itemStruct.itemID] = inBags[itemStruct.itemID] or 0 -- Assume that you have cleared out the bags
 					local toMove = InBags.me[itemStruct.itemID].inBags - inBags[itemStruct.itemID]
 					-- print( "inBags: "..inBags[itemStruct.itemID].."->"..toMove )
 					if ( toMove > 0 ) then
-						-- print( "I need to move: "..toMove )
-						for targetBagID in pairs( bagsWithSpace ) do
-							-- print( targetBagID.." has space.")
-							local moving = min( toMove, itemStruct.stackCount )
-							C_Container.SplitContainerItem( bag, slot, moving )	-- pick up an amount
-							-- print( "pick up "..moving.." from "..bag..", "..slot )
-							if( targetBagID == 0 and toMove > 0 ) then
-								-- print( "put in backpack." )
-								PutItemInBackpack()
-							else
-								-- print( "put in bag: "..targetBagID )
-								PutItemInBag( targetBagID + 30 )
-							end
+						print( "I need to move "..toMove.." "..itemStruct.hyperlink )
+						targetBagID = InBags.GetFirstOpenSlot()
+						print( targetBagID.." has space.")
+						local moving = min( toMove, itemStruct.stackCount )
+						C_Container.SplitContainerItem( bag, slot, moving )	-- pick up an amount
+						-- print( "pick up "..moving.." from "..bag..", "..slot )
+						if( targetBagID == 0 and toMove > 0 ) then
+							-- print( "put in backpack." )
+							PutItemInBackpack()
+						else
+							-- print( "put in bag: "..targetBagID )
+							PutItemInBag( targetBagID + 30 )
+						end
 
-							inBags[itemStruct.itemID] = inBags[itemStruct.itemID] + moving
-							local freeSlots, _ = C_Container.GetContainerNumFreeSlots( targetBagID )
-							if freeSlots == 0 then
-								bagsWithSpace[targetBagID] = nil
-							end
-							break
+						inBags[itemStruct.itemID] = inBags[itemStruct.itemID] + moving
+						local freeSlots, _ = C_Container.GetContainerNumFreeSlots( targetBagID )
+						if freeSlots == 0 then
+							bagsWithSpace[targetBagID] = nil
 						end
 					end
 
@@ -285,6 +285,9 @@ end
 function InBags.BAG_UPDATE( self, bagID )
 	if InBags.bankOpen then
 		print( "BAG_UPDATE: "..( bagID or "nil" ) )
+		if InBags.splitItems then
+			InBags.BANKFRAME_OPENED()
+		end
 	end
 end
 function InBags.BANKFRAME_CLOSED()
@@ -306,6 +309,22 @@ function InBags.AddItem( itemLink, p2 )
 			INEED.AddItem( itemLink, quantity )
 		end
 		InBags.me[tonumber(itemID)] = {["inBags"] = quantity}
+	end
+end
+function InBags.List()
+	for itemID, struct in pairs( InBags.me ) do
+		link = select( 2, GetItemInfo( itemID ) )
+		InBags.Print( string.format( "%s inBags: %d", link, struct.inBags ) )
+	end
+end
+function InBags.Delete( itemLink )
+	print( "delete "..itemLink )
+	local itemID = InBags.getItemIdFromLink( itemLink )
+	if itemID and string.len( itemID ) > 0 then
+		itemID = tonumber(itemID)
+		if InBags.me[itemID] then
+			InBags.me[itemID] = nil
+		end
 	end
 end
 
@@ -355,5 +374,12 @@ function InBags.PrintHelp()
 end
 
 InBags.commandList = {
-
+	["help"] = {
+		["func"] = InBags.PrintHelp,
+		["help"] = {"", "Print this help"},
+	},
+	["list"] = {
+		["func"] = InBags.List,
+		["help"] = {"", "List the tracked items."},
+	}
 }
