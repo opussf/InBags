@@ -52,16 +52,40 @@ function InBags.BANKFRAME_OPENED()
 	InBags.Print( "Bank opened" )
 
 	-- make action structure
-
-	local actions = {}
+	InBags.actions = {}
 	for itemID, itemInfo in pairs( InBags.me ) do
 		local youHave = GetItemCount( itemID, true ) -- include bank
 		local inBags = GetItemCount( itemID, false ) -- only in bags
 		InBags.Print( itemID.." you have: "..youHave..", of which "..inBags.."/"..itemInfo.inBags.." are in your bags." )
+		if inBags > itemInfo.inBags then
+			InBags.actions[itemID] = InBags.actions[itemID] or {}
+			InBags.actions[itemID].toBank = inBags - itemInfo.inBags
+
+		elseif inBags < itemInfo.inBags then
+			InBags.actions[itemID] = InBags.actions[itemID] or {}
+			InBags.actions[itemID].toBags = itemInfo.inBags - inBags
+		end
 	end
 
+	-- scan bags
+	local bagsWithSpace = {}   -- [bagnum] = true
+	for bag = 0, NUM_BAG_SLOTS+1 do
+		for slot = 0, C_Container.GetContainerNumSlots( bag ) do
+			local itemStruct = C_Container.GetContainerItemInfo( bag, slot )
+			if ( itemStruct ) then
+				if ( InBags.actions[itemStruct.itemID] and InBags.actions[itemStruct.itemID].toBank ) then
+					print( "Move "..itemStruct.hyperlink.." in ("..bag..", "..slot..") to bank" )
+					ClearCursor()
+					if ( InBags.actions[itemStruct.itemID].toBank > itemStruct.stackCount ) then
+						C_Container.UseContainerItem( bag, slot )
+						InBags.actions[itemStruct.itemID].toBank = InBags.actions[itemStruct.itemID].toBank - itemStruct.stackCount
+					end
+				end
+			end
+		end
+	end
 
-
+--[[
 
 	-- move items to the bank
 	local bagsWithSpace = {}
@@ -130,6 +154,7 @@ function InBags.BANKFRAME_OPENED()
 		end
 	end
 
+]]
 
 
 	-- for itemID, itemInfo in pairs( InBags.me ) do
