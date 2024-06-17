@@ -31,7 +31,7 @@ function InBags.OnLoad()
 	SlashCmdList["INBAGS"] = function( msg ) InBags.Command( msg); end
 
 	InBags_Frame:RegisterEvent( "BANKFRAME_OPENED" )
-	InBags_Frame:RegisterEvent( "UNIT_INVENTORY_CHANGED" )
+	InBags_Frame:RegisterEvent( "BANKFRAME_CLOSED" )
 	InBags_Frame:RegisterEvent( "ADDON_LOADED" )
 	InBags_Frame:RegisterEvent( "VARIABLES_LOADED" )
 	InBags_Frame:RegisterEvent( "PLAYER_LEAVING_WORLD" )
@@ -47,11 +47,22 @@ function InBags.VARIABLES_LOADED()
 	InBags_data[InBags.realm][InBags.name] = InBags_data[InBags.realm][InBags.name] or {}
 	InBags.me = InBags_data[InBags.realm][InBags.name]
 end
-function InBags.UNIT_INVENTORY_CHANGED()
-	print("UNIT_INVENTORY_CHANGED")
-end
 function InBags.BANKFRAME_OPENED()
+	InBags.bankOpen = true
 	InBags.Print( "Bank opened" )
+
+	-- make action structure
+
+	local actions = {}
+	for itemID, itemInfo in pairs( InBags.me ) do
+		local youHave = GetItemCount( itemID, true ) -- include bank
+		local inBags = GetItemCount( itemID, false ) -- only in bags
+		InBags.Print( itemID.." you have: "..youHave..", of which "..inBags.."/"..itemInfo.inBags.." are in your bags." )
+	end
+
+
+
+
 	-- move items to the bank
 	local bagsWithSpace = {}
 	for bag = 0, NUM_BAG_SLOTS+1 do
@@ -219,6 +230,10 @@ end
 
 
 
+end
+function InBags.BANKFRAME_CLOSED()
+	print( "Bank closed" )
+	InBags.bankOpen = nil
 end
 function InBags.PLAYER_LEAVING_WORLD()
 end
