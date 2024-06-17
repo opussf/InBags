@@ -32,6 +32,7 @@ function InBags.OnLoad()
 
 	InBags_Frame:RegisterEvent( "BANKFRAME_OPENED" )
 	InBags_Frame:RegisterEvent( "BANKFRAME_CLOSED" )
+	InBags_Frame:RegisterEvent( "BAG_UPDATE" )
 	InBags_Frame:RegisterEvent( "ADDON_LOADED" )
 	InBags_Frame:RegisterEvent( "VARIABLES_LOADED" )
 	InBags_Frame:RegisterEvent( "PLAYER_LEAVING_WORLD" )
@@ -49,9 +50,11 @@ function InBags.VARIABLES_LOADED()
 end
 function InBags.GetFirstOpenSlot()
 	-- Set this up to scan both bags and the bank in the future
-	for bag = 0, NUM_BAG_SLOTS+1 do
-		for slot = 0, C_Container.GetContainerNumSlots( bag ) do
+	for bag = NUM_BAG_SLOTS+1, 0, -1 do
+	-- for _, bag in pairs({-1, 6, 7, 8, 9, 10, 11, 12, -2}) do
+		for slot = 1, C_Container.GetContainerNumSlots( bag ) do
 			local itemStruct = C_Container.GetContainerItemInfo( bag, slot )
+			print( )
 			if not itemStruct then
 				return bag, slot
 			end
@@ -81,27 +84,67 @@ function InBags.BANKFRAME_OPENED()
 	-- scan bags
 	local bagsWithSpace = {}   -- [bagnum] = true
 	for bag = 0, NUM_BAG_SLOTS+1 do
-		for slot = 0, C_Container.GetContainerNumSlots( bag ) do
+		for slot = 1, C_Container.GetContainerNumSlots( bag ) do
 			local itemStruct = C_Container.GetContainerItemInfo( bag, slot )
 			if ( itemStruct ) then
 				if ( InBags.actions[itemStruct.itemID] and InBags.actions[itemStruct.itemID].toBank ) then
-					print( "Move "..itemStruct.hyperlink.." in ("..bag..", "..slot..") to bank" )
+					-- print( "Move "..itemStruct.hyperlink.." in ("..bag..", "..slot..") to bank" )
 					ClearCursor()
 					if ( InBags.actions[itemStruct.itemID].toBank >= itemStruct.stackCount ) then
 						C_Container.UseContainerItem( bag, slot )
 						InBags.actions[itemStruct.itemID].toBank = InBags.actions[itemStruct.itemID].toBank - itemStruct.stackCount
-					else
-						print( "I need to only move "..InBags.actions[itemStruct.itemID].toBank )
-						C_Container.SplitContainerItem( bag, slot, min( InBags.actions[itemStruct.itemID].toBank, itemStruct.stackCount ) )
+					elseif ( InBags.actions[itemStruct.itemID].toBank > 0 ) then
+						-- print( "I need to only move "..InBags.actions[itemStruct.itemID].toBank )
 						local targetBag, targetSlot = InBags.GetFirstOpenSlot()
 						if targetBag then
-							print( "Use ("..targetBag..", "..targetSlot..") as temp spot." )
-							C_Container.PickupContainerItem( bag, slot )
-							C_Container.PickupContainerItem( targetBag, targetSlot )
-							-- C_Container.UseContainerItem( targetBag, targetSlot )
-							-- InBags.actions[itemStruct.itemID].toBank = InBags.actions[itemStruct.itemID].toBank - itemStruct.stackCount
+							-- print( "Use ("..targetBag..", "..targetSlot..") as temp spot." )
+							C_Container.SplitContainerItem( bag, slot, itemStruct.stackCount - InBags.actions[itemStruct.itemID].toBank )
+							PutItemInBag( targetBag + 30 )
+							ClearCursor()
+							C_Container.UseContainerItem( bag, slot )
+							InBags.actions[itemStruct.itemID].toBank = 0
 						end
 					end
+				end
+			end
+		end
+	end
+	-- move items from bank
+	local inBags = {}
+	for _, bag in pairs({-1, 6, 7, 8, 9, 10, 11, 12, -2}) do
+		for slot = 0, C_Container.GetContainerNumSlots( bag ) do
+			local itemStruct = C_Container.GetContainerItemInfo( bag, slot )
+			if ( itemStruct ) then
+				if (InBags.me[itemStruct.itemID]) then
+					-- print( itemStruct.hyperlink.." is in ("..bag..", "..slot..") "..itemStruct.stackCount )
+					--inBags[itemStruct.itemID] = inBags[itemStruct.itemID] or GetItemCount( itemStruct.itemID, false ) -- only in bags
+					inBags[itemStruct.itemID] = inBags[itemStruct.itemID] or 0 -- Assume that you have cleared out the bags
+					local toMove = InBags.me[itemStruct.itemID].inBags - inBags[itemStruct.itemID]
+					-- print( "inBags: "..inBags[itemStruct.itemID].."->"..toMove )
+					if ( toMove > 0 ) then
+						-- print( "I need to move: "..toMove )
+						for targetBagID in pairs( bagsWithSpace ) do
+							-- print( targetBagID.." has space.")
+							local moving = min( toMove, itemStruct.stackCount )
+							C_Container.SplitContainerItem( bag, slot, moving )	-- pick up an amount
+							-- print( "pick up "..moving.." from "..bag..", "..slot )
+							if( targetBagID == 0 and toMove > 0 ) then
+								-- print( "put in backpack." )
+								PutItemInBackpack()
+							else
+								-- print( "put in bag: "..targetBagID )
+								PutItemInBag( targetBagID + 30 )
+							end
+
+							inBags[itemStruct.itemID] = inBags[itemStruct.itemID] + moving
+							local freeSlots, _ = C_Container.GetContainerNumFreeSlots( targetBagID )
+							if freeSlots == 0 then
+								bagsWithSpace[targetBagID] = nil
+							end
+							break
+						end
+					end
+
 				end
 			end
 		end
@@ -135,46 +178,7 @@ function InBags.BANKFRAME_OPENED()
 			bagsWithSpace[bag] = true
 		end
 	end
-	-- move items from bank
-	local inBags = {}
-	for _, bag in pairs({-1, 6, 7, 8, 9, 10, 11, 12, -2}) do
-		for slot = 0, C_Container.GetContainerNumSlots( bag ) do
-			local itemStruct = C_Container.GetContainerItemInfo( bag, slot )
-			if ( itemStruct ) then
-				if (InBags.me[itemStruct.itemID]) then
-					print( itemStruct.hyperlink.." is in ("..bag..", "..slot..") "..itemStruct.stackCount )
-					--inBags[itemStruct.itemID] = inBags[itemStruct.itemID] or GetItemCount( itemStruct.itemID, false ) -- only in bags
-					inBags[itemStruct.itemID] = inBags[itemStruct.itemID] or 0 -- Assume that you have cleared out the bags
-					local toMove = InBags.me[itemStruct.itemID].inBags - inBags[itemStruct.itemID]
-					print( "inBags: "..inBags[itemStruct.itemID].."->"..toMove )
-					if ( toMove > 0 ) then
-						print( "I need to move: "..toMove )
-						for targetBagID in pairs( bagsWithSpace ) do
-							print( targetBagID.." has space.")
-							local moving = min( toMove, itemStruct.stackCount )
-							C_Container.SplitContainerItem( bag, slot, moving )	-- pick up an amount
-							print( "pick up "..moving.." from "..bag..", "..slot )
-							if( targetBagID == 0 and toMove > 0 ) then
-								print( "put in backpack." )
-								PutItemInBackpack()
-							else
-								print( "put in bag: "..targetBagID )
-								PutItemInBag( targetBagID + 30 )
-							end
 
-							inBags[itemStruct.itemID] = inBags[itemStruct.itemID] + moving
-							local freeSlots, _ = C_Container.GetContainerNumFreeSlots( targetBagID )
-							if freeSlots == 0 then
-								bagsWithSpace[targetBagID] = nil
-							end
-							break
-						end
-					end
-
-				end
-			end
-		end
-	end
 
 ]]
 
@@ -277,6 +281,11 @@ end
 
 
 
+end
+function InBags.BAG_UPDATE( self, bagID )
+	if InBags.bankOpen then
+		print( "BAG_UPDATE: "..( bagID or "nil" ) )
+	end
 end
 function InBags.BANKFRAME_CLOSED()
 	print( "Bank closed" )
