@@ -47,6 +47,17 @@ function InBags.VARIABLES_LOADED()
 	InBags_data[InBags.realm][InBags.name] = InBags_data[InBags.realm][InBags.name] or {}
 	InBags.me = InBags_data[InBags.realm][InBags.name]
 end
+function InBags.GetFirstOpenSlot()
+	-- Set this up to scan both bags and the bank in the future
+	for bag = 0, NUM_BAG_SLOTS+1 do
+		for slot = 0, C_Container.GetContainerNumSlots( bag ) do
+			local itemStruct = C_Container.GetContainerItemInfo( bag, slot )
+			if not itemStruct then
+				return bag, slot
+			end
+		end
+	end
+end
 function InBags.BANKFRAME_OPENED()
 	InBags.bankOpen = true
 	InBags.Print( "Bank opened" )
@@ -76,9 +87,20 @@ function InBags.BANKFRAME_OPENED()
 				if ( InBags.actions[itemStruct.itemID] and InBags.actions[itemStruct.itemID].toBank ) then
 					print( "Move "..itemStruct.hyperlink.." in ("..bag..", "..slot..") to bank" )
 					ClearCursor()
-					if ( InBags.actions[itemStruct.itemID].toBank > itemStruct.stackCount ) then
+					if ( InBags.actions[itemStruct.itemID].toBank >= itemStruct.stackCount ) then
 						C_Container.UseContainerItem( bag, slot )
 						InBags.actions[itemStruct.itemID].toBank = InBags.actions[itemStruct.itemID].toBank - itemStruct.stackCount
+					else
+						print( "I need to only move "..InBags.actions[itemStruct.itemID].toBank )
+						C_Container.SplitContainerItem( bag, slot, min( InBags.actions[itemStruct.itemID].toBank, itemStruct.stackCount ) )
+						local targetBag, targetSlot = InBags.GetFirstOpenSlot()
+						if targetBag then
+							print( "Use ("..targetBag..", "..targetSlot..") as temp spot." )
+							C_Container.PickupContainerItem( bag, slot )
+							C_Container.PickupContainerItem( targetBag, targetSlot )
+							-- C_Container.UseContainerItem( targetBag, targetSlot )
+							-- InBags.actions[itemStruct.itemID].toBank = InBags.actions[itemStruct.itemID].toBank - itemStruct.stackCount
+						end
 					end
 				end
 			end
