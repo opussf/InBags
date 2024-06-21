@@ -63,9 +63,7 @@ function InBags.GetFirstOpenSlot()
 end
 function InBags.BANKFRAME_OPENED()
 	InBags.bankOpen = true
-	InBags.splitItems = nil
 	InBags.Print( "Bank opened" )
-
 	-- make action structure
 	InBags.actions = {}
 	for itemID, itemInfo in pairs( InBags.me ) do
@@ -81,6 +79,35 @@ function InBags.BANKFRAME_OPENED()
 			InBags.actions[itemID].toBags = itemInfo.inBags - inBags
 		end
 	end
+
+	-- scan bags, create events if needed
+	InBags.actions.events = {}
+	for bag = 0, NUM_BAG_SLOTS+1 do  -- loop through bag slots
+		for slot = 1, C_Container.GetContainerNumSlots( bag ) do -- loop through slots in bag, if it is a bag
+			local itemStruct = C_Container.GetContainerItemInfo( bag, slot )  -- get the item info
+			if ( itemStruct ) then
+				if ( InBags.actions[itemStruct.itemID] and InBags.actions[itemStruct.itemID].toBank ) then
+					ClearCursor()
+					if ( InBags.actions[itemStruct.itemID].toBank >= itemStruct.stackCount ) then  -- Need to move more than this stack has
+						C_Container.UseContainerItem( bag, slot )  -- Moves entire stack to bank
+						InBags.actions[itemStruct.itemID].toBank = InBags.actions[itemStruct.itemID].toBank - itemStruct.stackCount
+					elseif ( InBags.actions[itemStruct.itemID].toBank > 0 ) then
+						print( itemStruct.hyperlink..": only move "..InBags.actions[itemStruct.itemID].toBank )
+						local targetBag, targetSlot = InBags.GetFirstOpenSlot()
+						if targetBag then
+							print( "Use ("..targetBag..", "..targetSlot..") as temp spot." )
+							C_Container.SplitContainerItem( bag, slot, InBags.actions[itemStruct.itemID].toBank )
+							PutItemInBag( targetBag + 30 )
+							InBags.actions.events[targetBag] = InBags.actions.events[targetBag] or {}
+							table.insert( InBags.actions.events[targetBag], {itemStruct.itemID} )
+						end
+					end
+				end
+			end
+		end
+	end
+--[[
+
 
 	-- scan bags
 	local bagsWithSpace = {}   -- [bagnum] = true
@@ -149,6 +176,7 @@ function InBags.BANKFRAME_OPENED()
 			end
 		end
 	end
+]]
 
 --[[
 
@@ -285,8 +313,8 @@ end
 function InBags.BAG_UPDATE( self, bagID )
 	if InBags.bankOpen then
 		print( "BAG_UPDATE: "..( bagID or "nil" ) )
-		if InBags.splitItems then
-			InBags.BANKFRAME_OPENED()
+		if InBags.actions.events[bagID] then
+			InBags.Print( "Event for "..bagID..": "..InBags.actions.events[bagID][1][1] )   --  [1] is first item, [1] is itemid
 		end
 	end
 end
