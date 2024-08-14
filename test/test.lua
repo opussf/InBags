@@ -20,14 +20,14 @@ end
 ------------------------------------------
 -- ADDON_LOADED, and VARIABLES_LOADED should set up missing structure
 function test.test_structure_setRealm()
-	assertTrue( InBags_data["testRealm"] )
+	assertTrue( InBags_data["Test Realm"] )
 end
 function test.test_structure_setName()
-	assertTrue( InBags_data["testRealm"]["testPlayer"] )
+	assertTrue( InBags_data["Test Realm"]["testPlayer"] )
 end
 function test.test_structure_setMe()
 	assertTrue( InBags.me )
-	assertEquals( InBags.me, InBags_data["testRealm"]["testPlayer"], "InBags.me should point to InBags_data for current player." )
+	assertEquals( InBags.me, InBags_data["Test Realm"]["testPlayer"], "InBags.me should point to InBags_data for current player." )
 end
 -- Add Item
 ------------------------------------------

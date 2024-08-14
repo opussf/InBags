@@ -1,7 +1,7 @@
-InBags_SLUG, InBags = ...
-InBags_MSG_ADDONNAME = GetAddOnMetadata( InBags_SLUG, "Title" )
-InBags_MSG_VERSION   = GetAddOnMetadata( InBags_SLUG, "Version" )
-InBags_MSG_AUTHOR    = GetAddOnMetadata( InBags_SLUG, "Author" )
+InBags_SLUG, InBags  = ...
+InBags_MSG_ADDONNAME = C_AddOns.GetAddOnMetadata( InBags_SLUG, "Title" )
+InBags_MSG_VERSION   = C_AddOns.GetAddOnMetadata( InBags_SLUG, "Version" )
+InBags_MSG_AUTHOR    = C_AddOns.GetAddOnMetadata( InBags_SLUG, "Author" )
 
 -- Colours
 COLOR_RED = "|cffff0000"
@@ -106,38 +106,7 @@ function InBags.BANKFRAME_OPENED()
 			end
 		end
 	end
---[[
 
-
-	-- scan bags
-	local bagsWithSpace = {}   -- [bagnum] = true
-	for bag = 0, NUM_BAG_SLOTS+1 do
-		for slot = 1, C_Container.GetContainerNumSlots( bag ) do
-			local itemStruct = C_Container.GetContainerItemInfo( bag, slot )
-			if ( itemStruct ) then
-				if ( InBags.actions[itemStruct.itemID] and InBags.actions[itemStruct.itemID].toBank ) then
-					-- print( "Move "..itemStruct.hyperlink.." in ("..bag..", "..slot..") to bank" )
-					ClearCursor()
-					if ( InBags.actions[itemStruct.itemID].toBank >= itemStruct.stackCount ) then
-						C_Container.UseContainerItem( bag, slot )
-						InBags.actions[itemStruct.itemID].toBank = InBags.actions[itemStruct.itemID].toBank - itemStruct.stackCount
-					elseif ( InBags.actions[itemStruct.itemID].toBank > 0 ) then
-						-- print( "I need to only move "..InBags.actions[itemStruct.itemID].toBank )
-						local targetBag, targetSlot = InBags.GetFirstOpenSlot()
-						if targetBag then
-							-- print( "Use ("..targetBag..", "..targetSlot..") as temp spot." )
-							C_Container.SplitContainerItem( bag, slot, itemStruct.stackCount - InBags.actions[itemStruct.itemID].toBank )
-							InBags.splitItems = true
-							PutItemInBag( targetBag + 30 )
-							ClearCursor()
-							C_Container.UseContainerItem( bag, slot )
-							InBags.actions[itemStruct.itemID].toBank = 0
-						end
-					end
-				end
-			end
-		end
-	end
 	-- move items from bank
 	local inBags = {}
 	for _, bag in pairs({-1, 6, 7, 8, 9, 10, 11, 12, -2}) do
@@ -171,11 +140,43 @@ function InBags.BANKFRAME_OPENED()
 							bagsWithSpace[targetBagID] = nil
 						end
 					end
-
 				end
 			end
 		end
 	end
+--[[
+
+
+	-- scan bags
+	local bagsWithSpace = {}   -- [bagnum] = true
+	for bag = 0, NUM_BAG_SLOTS+1 do
+		for slot = 1, C_Container.GetContainerNumSlots( bag ) do
+			local itemStruct = C_Container.GetContainerItemInfo( bag, slot )
+			if ( itemStruct ) then
+				if ( InBags.actions[itemStruct.itemID] and InBags.actions[itemStruct.itemID].toBank ) then
+					-- print( "Move "..itemStruct.hyperlink.." in ("..bag..", "..slot..") to bank" )
+					ClearCursor()
+					if ( InBags.actions[itemStruct.itemID].toBank >= itemStruct.stackCount ) then
+						C_Container.UseContainerItem( bag, slot )
+						InBags.actions[itemStruct.itemID].toBank = InBags.actions[itemStruct.itemID].toBank - itemStruct.stackCount
+					elseif ( InBags.actions[itemStruct.itemID].toBank > 0 ) then
+						-- print( "I need to only move "..InBags.actions[itemStruct.itemID].toBank )
+						local targetBag, targetSlot = InBags.GetFirstOpenSlot()
+						if targetBag then
+							-- print( "Use ("..targetBag..", "..targetSlot..") as temp spot." )
+							C_Container.SplitContainerItem( bag, slot, itemStruct.stackCount - InBags.actions[itemStruct.itemID].toBank )
+							InBags.splitItems = true
+							PutItemInBag( targetBag + 30 )
+							ClearCursor()
+							C_Container.UseContainerItem( bag, slot )
+							InBags.actions[itemStruct.itemID].toBank = 0
+						end
+					end
+				end
+			end
+		end
+	end
+
 ]]
 
 --[[
@@ -314,7 +315,15 @@ function InBags.BAG_UPDATE( self, bagID )
 	if InBags.bankOpen then
 		print( "BAG_UPDATE: "..( bagID or "nil" ) )
 		if InBags.actions.events[bagID] then
-			InBags.Print( "Event for "..bagID..": "..InBags.actions.events[bagID][1][1] )   --  [1] is first item, [1] is itemid
+			--InBags.Print( "Event for "..bagID..": "..InBags.actions.events[bagID][1][1] )   --  [1] is first item, [1] is itemid
+			for slot = 1, C_Container.GetContainerNumSlots( bagID ) do
+				local itemStruct = C_Container.GetContainerItemInfo( bagID, slot )
+				if ( itemStruct and #InBags.actions.events[bagID] > 1 and itemStruct.itemID == InBags.actions.events[bagID][1][1] ) then
+					print( "Found a stack to move to the bank.")
+					C_Container.UseContainerItem( bagID, slot )  -- Moves entire stack to bank
+					table.remove( InBags.actions.events[bagID], 1 )
+				end
+			end
 		end
 	end
 end

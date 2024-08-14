@@ -1,7 +1,7 @@
 -----------------------------------------
 -- Author  :  Opussf
--- Date    :  May 15 2024
--- Revision:  9.4.3
+-- Date    :  August 13 2024
+-- Revision:  9.4.3-17-g11678c7
 -----------------------------------------
 -- These are functions from wow that have been needed by addons so far
 -- Not a complete list of the functions.
@@ -216,40 +216,86 @@ LE_PARTY_CATEGORY_INSTANCE = 2
 -- WowToken
 TokenPrice = 123456 -- 12G 34S 45C
 --- Factions
-globals.FACTION_STANDING_LABEL1 = "Hated"
-globals.FACTION_STANDING_LABEL2 = "Hostile"
-globals.FACTION_STANDING_LABEL3 = "Unfriendly"
-globals.FACTION_STANDING_LABEL4 = "Neutral"
-globals.FACTION_STANDING_LABEL5 = "Friendly"
-globals.FACTION_STANDING_LABEL6 = "Honored"
-globals.FACTION_STANDING_LABEL7 = "Revered"
-globals.FACTION_STANDING_LABEL8 = "Exalted"
+FACTION_STANDING_LABEL1 = "Hated"
+FACTION_STANDING_LABEL2 = "Hostile"
+FACTION_STANDING_LABEL3 = "Unfriendly"
+FACTION_STANDING_LABEL4 = "Neutral"
+FACTION_STANDING_LABEL5 = "Friendly"
+FACTION_STANDING_LABEL6 = "Honored"
+FACTION_STANDING_LABEL7 = "Revered"
+FACTION_STANDING_LABEL8 = "Exalted"
+FACTION_STANDING_INCREASED = "Reputation with %s increased by %d"
+FACTION_STANDING_DECREASED = "Reputation with %s decreased by %d"
+FACTION_STANDING_INCREASED_ACCOUNT_WIDE = "Your Warband's reputation with %s increased by %d"
+FACTION_STANDING_DECREASED_ACCOUNT_WIDE = "Your Warband's reputation with %s decreased by %d"
 
 COMBATLOG_OBJECT_AFFILIATION_OUTSIDER = 8
 COMBATLOG_XPGAIN_FIRSTPERSON = "%s dies, you gain %d experience."
 COMBATLOG_XPGAIN_EXHAUSTION1 = "%s dies, you gain %d experience. (%s exp %s bonus)"
 
---			TT.fName, TT.fDescription, TT.fStandingId, TT.fBottomValue, TT.fTopValue, TT.fEarnedValue, TT.fAtWarWith,
---					TT.fCanToggleAtWar, TT.fIsHeader, TT.fIsCollapsed, TT.fIsWatched, TT.isChild, TT.factionID,
---					TT.hasBonusRepGain, TT.canBeLFGBonus = GetFactionInfo(factionIndex);
+--[[
+				{ Name = "factionID", Type = "number", Nilable = false },
+				{ Name = "name", Type = "cstring", Nilable = false },
+				{ Name = "description", Type = "cstring", Nilable = false },
+				{ Name = "reaction", Type = "luaIndex", Nilable = false },
+				{ Name = "currentReactionThreshold", Type = "number", Nilable = false },
+				{ Name = "nextReactionThreshold", Type = "number", Nilable = false },
+				{ Name = "currentStanding", Type = "number", Nilable = false },
+				{ Name = "atWarWith", Type = "bool", Nilable = false },
+				{ Name = "canToggleAtWar", Type = "bool", Nilable = false },
+				{ Name = "isChild", Type = "bool", Nilable = false },
+				{ Name = "isHeader", Type = "bool", Nilable = false },
+				{ Name = "isHeaderWithRep", Type = "bool", Nilable = false },
+				{ Name = "isCollapsed", Type = "bool", Nilable = false },
+				{ Name = "isWatched", Type = "bool", Nilable = false },
+				{ Name = "hasBonusRepGain", Type = "bool", Nilable = false },
+				{ Name = "canSetInactive", Type = "bool", Nilable = false },
+				{ Name = "isAccountWide", Type = "bool", Nilable = false },
+]]
 FactionInfo = {
-	{ ["name"] = "Classic", ["description"] = "", ["standingID"] = 4, ["bottomValue"] = 0, ["topValue"] = 3000, ["earnedValue"] = 0,
-		["atWarWith"] = false, ["canToggleAtWar"] = true, ["isHeader"] = true, ["isCollapsed"] = false, ["hasRep"] = false,
-		["isWatched"] = false, ["isChild"] = false, ["factionID"] = 1118, ["hasBonusRepGain"] = false, ["canBeLFGBonus"] = false,
+	{
+		["factionID"] =   72, ["name"] = "Stormwind", ["description"] = "", ["reaction"] = 7, ["currentReactionThreshold"] = 21000,
+		["nextReactionThreshold"] = 42000, ["currentStanding"] = 33397, ["atWarWith"] = false, ["canToggleAtWar"] = false,
+		["isChild"] = true, ["isHeader"] = false, ["isHeaderWithRep"] = false, ["isCollapsed"] = false, ["isWatched"] = true,
+		["hasBonusRepGain"] = false, ["canSetInactive"] = false, ["isAccountWide"] = false,
 	},
-	{ ["name"] = "Darkmoon Faire", ["description"] = "description and stuff",
-		["standingID"] = 5, ["bottomValue"] = 3000, ["topValue"] = 9000, ["earnedValue"] = 7575,
-		["atWarWith"] = false, ["canToggleAtWar"] = false, ["isHeader"] = false, ["isCollapsed"] = false, ["hasRep"] = false,
-		["isWatched"] = false, ["isChild"] = true, ["factionID"] = 909, ["hasBonusRepGain"] = false, ["canBeLFGBonus"] = false,
+	{
+		["factionID"] =  469, ["name"] = "Alliance", ["description"] = "", ["reaction"] = 6, ["currentReactionThreshold"] = 9000,
+		["nextReactionThreshold"] = 21000, ["currentStanding"] = 10390, ["atWarWith"] = false, ["canToggleAtWar"] = false,
+		["isChild"] = false, ["isHeader"] = true, ["isHeaderWithRep"] = false, ["isCollapsed"] = false, ["isWatched"] = false,
+		["hasBonusRepGain"] = false, ["canSetInactive"] = false, ["isAccountWide"] = false,
 	},
-	{ ["name"] = "Alliance", ["description"] = "", ["standingID"] = 6, ["bottomValue"] = 9000, ["topValue"] = 21000, ["earnedValue"] = 10390,
-		["atWarWith"] = false, ["canToggleAtWar"] = false, ["isHeader"] = true, ["isCollapsed"] = false, ["hasRep"] = false,
-		["isWatched"] = false, ["isChild"] = false, ["factionID"] = 469, ["hasBonusRepGain"] = false, ["canBeLFGBonus"] = false,
+	{
+		["factionID"] =  909, ["name"] = "Darkmoon Faire", ["description"] = "description and stuff", ["reaction"] = 5, ["currentReactionThreshold"] = 3000,
+		["nextReactionThreshold"] = 9000, ["currentStanding"] = 7575, ["atWarWith"] = false, ["canToggleAtWar"] = false,
+		["isChild"] = true, ["isHeader"] = false, ["isHeaderWithRep"] = false, ["isCollapsed"] = false, ["isWatched"] = false,
+		["hasBonusRepGain"] = false, ["canSetInactive"] = false, ["isAccountWide"] = false,
 	},
-	{ ["name"] = "Stormwind", ["description"] = "", ["standingID"] = 7, ["bottomValue"] = 21000, ["topValue"] = 42000, ["earnedValue"] = 33397,
-		["atWarWith"] = false, ["canToggleAtWar"] = false, ["isHeader"] = false, ["isCollapsed"] = false, ["hasRep"] = false,
-		["isWatched"] = true, ["isChild"] = true, ["factionID"] = 72, ["hasBonusRepGain"] = false, ["canBeLFGBonus"] = false,
+	{
+		["factionID"] = 1118, ["name"] = "Classic", ["description"] = "", ["reaction"] = 4, ["currentReactionThreshold"] = 0,
+		["nextReactionThreshold"] = 4000, ["currentStanding"] = 0, ["atWarWith"] = false, ["canToggleAtWar"] = true,
+		["isChild"] = false, ["isHeader"] = true, ["isHeaderWithRep"] = true, ["isCollapsed"] = false, ["isWatched"] = false,
+		["hasBonusRepGain"] = false, ["canSetInactive"] = false, ["isAccountWide"] = false,
 	},
+	{
+		["factionID"] = 2001, ["name"] = "Find my Name", ["description"] = "", ["reaction"] = 4, ["currentReactionThreshold"] = 0,
+		["nextReactionThreshold"] = 4000, ["currentStanding"] = 0, ["atWarWith"] = false, ["canToggleAtWar"] = true,
+		["isChild"] = false, ["isHeader"] = true, ["isHeaderWithRep"] = true, ["isCollapsed"] = false, ["isWatched"] = false,
+		["hasBonusRepGain"] = false, ["canSetInactive"] = false, ["isAccountWide"] = true,
+	},
+	{
+		["factionID"] = 1282, ["name"] = "Fish Fellrend", ["description"] = "", ["reaction"] = 5, ["currentReactionThreshold"] = 0,
+		["nextReactionThreshold"] = 4000, ["currentStanding"] = 0, ["atWarWith"] = false, ["canToggleAtWar"] = true,
+		["isChild"] = false, ["isHeader"] = true, ["isHeaderWithRep"] = true, ["isCollapsed"] = false, ["isWatched"] = false,
+		["hasBonusRepGain"] = false, ["canSetInactive"] = false, ["isAccountWide"] = true,
+	},
+	{
+		["factionID"] = 2010, ["name"] = "Max", ["description"] = "", ["reaction"] = 8, ["currentReactionThreshold"] = 42000,
+		["nextReactionThreshold"] = 42000, ["currentStanding"] = 42000, ["atWarWith"] = false, ["canToggleAtWar"] = true,
+		["isChild"] = false, ["isHeader"] = true, ["isHeaderWithRep"] = true, ["isCollapsed"] = false, ["isWatched"] = false,
+		["hasBonusRepGain"] = false, ["canSetInactive"] = false, ["isAccountWide"] = true,
+	},
+
 }
 --Auras
 -- IIRC (Look this up) Auras are index based, use an index based system
@@ -405,6 +451,7 @@ Frame = {
 		["GetWidth"] = function(self) return( self.width ); end,
 		["SetHeight"] = function(self, value) self.height = value; end,
 		["GetHeight"] = function(self) return( self.height ); end,
+		["SetMovable"] = function(self, value) self.movable = value end,
 		["CreateFontString"] = function(self, ...) return(CreateFontString(...)) end,
 		["SetSize"] = function(self, x, y) end,
 		["ClearAllPoints"] = function(self) self.points={}; end,
@@ -458,7 +505,7 @@ Units = {
 		["faction"] = {"Alliance", "Alliance"},
 		["name"] = "testPlayer",
 		["race"] = "Human",
-		["realm"] = "testRealm",
+		["realm"] = "Test Realm",
 		["realmRelationship"] = 1,  -- same realm
 		["sex"] = 3,
 		["currentHealth"] = 100000,
@@ -571,11 +618,23 @@ end
 EditBox = {
 		["SetText"] = function(self,text) self.text=text; end,
 		["SetCursorPosition"] = function(self,pos) self.cursorPosition=pos; end,
-
 }
 function CreateEditBox( name, ... )
 	me = {}
 	for k,v in pairs(EditBox) do
+		me[k] = v
+	end
+	me.name = name
+	return me
+end
+Button = {
+	["enabled"] = true,
+	["SetEnabled"] = function(self,enabled) self.enabled = enabled; end,
+	["IsEnabled"] = function(self) return self.enabled; end,
+}
+function CreateButton( name, ... )
+	me = {}
+	for k,v in pairs(Button) do
 		me[k] = v
 	end
 	me.name = name
@@ -651,6 +710,9 @@ function CloseMail()
 	-- @TODO - Write this
 end
 ]]
+function InCombatLockdown()
+	return false
+end
 function CombatLogGetCurrentEventInfo()
 	-- return much the same info as used to be passed to the LOG_UNFILTERD event
 	-- set CombatLogCurrentEventInfo = {} to return specific data.
@@ -812,11 +874,6 @@ function GetComparisonStatistic( achievementID )
 	-- returns: string - the value of the requested statistic
 	return Achievements[achievementID].value
 end
-function GetAddOnMetadata( addon, field )
-	-- returns addonData[field] for 'addon'
-	-- local addonData = { ["version"] = "1.0", }
-	return addonData[field]
-end
 function GetCategoryList()
 	-- http://www.wowwiki.com/API_GetCategoryList
 	-- Returns a table of achievement categories
@@ -834,20 +891,20 @@ function GetCategoryNumAchievements( catID )
 	-- numIncomplete: Number of incomplete achievements
 	return 5,0,5
 end
-function GetCoinTextureString( copperIn, fontHeight )
--- simulates the Wow function:  http://www.wowwiki.com/API_GetCoinTextureString
--- fontHeight is ignored for now.
-	if copperIn then
-		-- cannot return exactly what WoW does, but can make a simular string
-		local gold = math.floor(copperIn / 10000); copperIn = copperIn - (gold * 10000)
-		local silver = math.floor(copperIn / 100); copperIn = copperIn - (silver * 100)
-		local copper = copperIn
-		return( (gold and gold.."G ")..
-				(silver and silver.."S ")..
-				(copper and copper.."C"))
-	end
-end
 
+C_AddOns = {}
+function C_AddOns.GetAddOnMetadata( addon, field )
+	-- returns addonData[field] for 'addon'
+	-- local addonData = { ["version"] = "1.0", }
+	return addonData[field]
+end
+function C_AddOns.GetNumAddOns()
+	return 1
+end
+function C_AddOns.LoadAddOn( addonName )
+end
+function C_AddOns.DisableAddOn( addonName, playerName )
+end
 
 C_Container = {}
 C_Container.SortBagsRightToLeft = false -- this is normal
@@ -913,12 +970,6 @@ function GetEquipmentSetInfoByName( nameIn )
 		end
 	end
 end
-function GetFactionInfo( index )
-	-- http://wowprogramming.com/docs/api/GetFactionInfo
-	local f = FactionInfo[ index ]
-	return f.name, f.description, f.standingID, f.bottomValue, f.topValue, f.earnedValue, f.atWarWith, f.canToggleAtWar,
-			f.isHeader, f.isCollapsed, f.hasRep, f.isWatched, f.isChild, f.factionID, f.hasBonusRepGain, f.canBeLFGBonus
-end
 function GetGuildInfo( unitID )
 	-- http://wowprogramming.com/docs/api/GetGuildInfo
 	-- Returns: guildName, guildRankName, guildRankIndex
@@ -961,7 +1012,7 @@ function GetInventorySlotInfo( slotName )
 		end
 	end
 end
-function GetItemCount( itemID, includeBank )
+function GetItemCount( itemID, includeBank, includeUses, includeReagentBank, includeAccountBank )
 	-- print( itemID, myInventory[itemID] )
 	return myInventory[itemID] or 0
 end
@@ -1136,7 +1187,8 @@ end
 function GetPlayerInfoByGUID( playerGUID )
 	-- http://wowprogramming.com/docs/api/GetPlayerInfoByGUID
 	-- localClass, englishClass, localRace, englishRace, gender, name, realm = GetPlayerInfoByGUID( playerGUID )
-	return "Warlock", "Warlock", "Human", "Human", 3, "testPlayer", "testRealm"
+	-- @TODO: Affirm this
+	return "Warlock", "Warlock", "Human", "Human", 3, "testPlayer", "Test Realm"
 end
 function GetQuestResetTime()
 	-- @TODO: Find out more about this
@@ -1150,7 +1202,10 @@ function GetRaidRosterInfo( raidIndex )
 	end
 end
 function GetRealmName()
-	return "testRealm"
+	return "Test Realm"
+end
+function GetNormalizedRealmName()
+	return "TestRealm"
 end
 function GetSendMailItem( slot )
 	-- 1 <= slot <= ATTACHMENTS_MAX_SEND
@@ -1295,8 +1350,6 @@ function GetFramerate()
 end
 function IsResting()
 	return true
-end
-function LoadAddOn()
 end
 function NumTaxiNodes()
 	-- http://www.wowwiki.com/API_NumTaxiNodes
@@ -1502,13 +1555,12 @@ end
 function UnitAffectingCombat( unit )
 	return false
 end
-function UnitAura( unit, index, filter )
+C_UnitAuras = {}
+function C_UnitAuras.GetAuraDataByIndex( unit, index )
 	-- @TODO: Look this up to get a better idea of what this function does.
-	-- Returns the aura name
-	-- unit, [index] [,filter]
-	-- Returns True or nil
+	-- Returns an auraData table
 	if( UnitAuras[unit] and UnitAuras[unit][index] ) then
-		return UnitAuras[unit][index].name
+		return UnitAuras[unit][index]
 	end
 end
 function UnitClass( who )
@@ -1647,6 +1699,12 @@ function GetEquipmentSetInfoByName( nameIn )
 		end
 	end
 end
+function CanMerchantRepair()
+	return true
+end
+function CanGuildBankRepair()
+	return true
+end
 
 --http://wow.gamepedia.com/Patch_7.0.3/API_changes
 
@@ -1678,6 +1736,19 @@ end
 -- C_CurrencyInfo
 ----------
 C_CurrencyInfo = {}
+function C_CurrencyInfo.GetCoinTextureString( copperIn, fontHeight )
+-- simulates the Wow function:  http://www.wowwiki.com/API_GetCoinTextureString
+-- fontHeight is ignored for now.
+	if copperIn then
+		-- cannot return exactly what WoW does, but can make a simular string
+		local gold = math.floor(copperIn / 10000); copperIn = copperIn - (gold * 10000)
+		local silver = math.floor(copperIn / 100); copperIn = copperIn - (silver * 100)
+		local copper = copperIn
+		return( (gold and gold.."G ")..
+				(silver and silver.."S ")..
+				(copper and copper.."C"))
+	end
+end
 function C_CurrencyInfo.GetCurrencyInfo( id ) -- id is integet
 	-- returns a table:
 	-- 		localName, isHeader, isHeaderExpanded, isTypeUnused, isShowInBackpack, quantity, iconFileID, maxQuantity,
@@ -1696,9 +1767,21 @@ function C_CurrencyInfo.GetCurrencyLink( id )
 	end
 end
 
+----------
+-- C_Bank
+----------
+C_Bank = {}
+function C_Bank.FetchDepositedMoney( accountTypeEnum )
+	return 8376
+end
+function C_Bank.CanDepositMoney()
+	return true
+end
+
 Enum = {}
 Enum.TooltipDataType = {}
 Enum.TooltipDataType.Item = 0
+Enum.BankType = {["Account"] = 2}
 
 TooltipDataProcessor = {}
 function TooltipDataProcessor.AddTooltipPostCall()
@@ -1792,6 +1875,54 @@ function PlayerHasToy( id )
 end
 function C_ToyBox.IsToyUsable( id )
 	return toyList[id] and toyList[id][1]
+end
+
+----------
+-- Settings
+----------
+Settings = {}
+function Settings.OpenToCategory( id )
+end
+function Settings.RegisterCanvasLayoutCategory( frame, name )
+	-- return a category structure
+	return ( {["GetID"] = function() return 234; end} )
+end
+function Settings.RegisterAddOnCategory(category)
+end
+
+----------
+-- C_Reputation
+----------
+C_Reputation = {}
+function C_Reputation.GetFactionDataByID( idIn )
+	for _, factionData in pairs( FactionInfo ) do
+		if factionData.factionID == idIn then
+			return factionData
+		end
+	end
+end
+function C_Reputation.GetFactionParagonInfo()
+end
+
+----------
+-- C_GossipInfo
+----------
+C_GossipInfo = {}
+function C_GossipInfo.GetFriendshipReputation( idIn )
+	return {["maxRep"]=0, ["text"]="", ["reversedColor"]=false, ["reaction"]="", ["standing"]=0, ["reactionThreshold"]=0, ["friendshipFactionID"]=0, ["textrue"]=0}
+end
+
+----------
+-- C_Item
+----------
+C_Item = {}
+C_Item.GetItemCount = GetItemCount
+
+----------
+-- Menu
+----------
+Menu = {}
+function Menu.ModifyMenu( ... )
 end
 
 -- A SAX parser takes a content handler, which provides these methods:
