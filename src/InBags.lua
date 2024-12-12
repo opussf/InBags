@@ -47,6 +47,7 @@ function InBags.VARIABLES_LOADED()
 	InBags_data[InBags.realm] = InBags_data[InBags.realm] or {}
 	InBags_data[InBags.realm][InBags.name] = InBags_data[InBags.realm][InBags.name] or {}
 	InBags.me = InBags_data[InBags.realm][InBags.name]
+	InBags.Print( "Loaded v"..InBags_MSG_VERSION )
 end
 function InBags.GetFirstOpenSlot()
 	-- Set this up to scan both bags and the bank in the future
@@ -69,6 +70,7 @@ function InBags.BANKFRAME_OPENED()
 	for itemID, itemInfo in pairs( InBags.me ) do
 		local youHave = GetItemCount( itemID, true ) -- include bank
 		local inBags = GetItemCount( itemID, false ) -- only in bags
+		local inAccount = C_Item.GetItemCount( itemID, false, false, false, true ) - inBags  -- warband bank?
 		InBags.Print( itemID.." you have: "..youHave..", of which "..inBags.."/"..itemInfo.inBags.." are in your bags." )
 		if inBags > itemInfo.inBags then
 			InBags.actions[itemID] = InBags.actions[itemID] or {}
@@ -406,7 +408,7 @@ function InBags.PrintHelp()
 	InBags.Print(InBags_MSG_ADDONNAME.." ("..InBags_MSG_VERSION..") by "..InBags_MSG_AUTHOR)
 	for cmd, info in pairs(InBags.commandList) do
 		InBags.Print(string.format("%s %s %s -> %s",
-			SLASH_InBags1, cmd, info.help[1], info.help[2]))
+			SLASH_INBAGS1, cmd, info.help[1], info.help[2]))
 	end
 end
 

@@ -1,7 +1,7 @@
 -----------------------------------------
 -- Author  :  Opussf
--- Date    :  August 13 2024
--- Revision:  9.4.3-17-g11678c7
+-- Date    :  December 07 2024
+-- Revision:  9.5-14-gb4ad3de
 -----------------------------------------
 -- These are functions from wow that have been needed by addons so far
 -- Not a complete list of the functions.
@@ -12,6 +12,7 @@
 -- * Create test.lua  - Add #!/usr/bin/env lua
 -- * require "wowTest"
 -- * set test.outFileName to an ouput.xml file
+-- * set test.coberturaFileName = "../coverage.xml" to enable coverage output
 -- * Parse the TOC - ParseTOC( "../src/sonthing.toc" )
 -- * Setup any 'Normal Frames'
 
@@ -333,7 +334,7 @@ format = string.format
 strmatch = string.match
 strfind = string.find
 strsub = string.sub
-strtolower = string.lower
+strlower = string.lower
 strlen = string.len
 time = os.time
 date = os.date
@@ -454,9 +455,11 @@ Frame = {
 		["SetMovable"] = function(self, value) self.movable = value end,
 		["CreateFontString"] = function(self, ...) return(CreateFontString(...)) end,
 		["SetSize"] = function(self, x, y) end,
+		["GetSize"] = function(self) return 400,125 end,
 		["ClearAllPoints"] = function(self) self.points={}; end,
 		["GetPoint"] = function(self) end,
 		["GetNumPoints"] = function(self) end,
+		["StopMovingOrSizing"] = function(self) end,
 
 		["SetMinMaxValues"] = function(self, min, max) self.min=min; self.max=max; end,
 		["SetValue"] = function(self, value) self.value=value end,
@@ -601,6 +604,7 @@ function CreateSlider( name, ... )
 	end
 	Slider.name=name
 	Slider[name.."Text"] = CreateFontString(name.."Text")
+	Slider.GetValue = function() return 2  end
 	return Slider
 end
 CheckButton = {
@@ -618,6 +622,8 @@ end
 EditBox = {
 		["SetText"] = function(self,text) self.text=text; end,
 		["SetCursorPosition"] = function(self,pos) self.cursorPosition=pos; end,
+		["HighlightText"] = function(self,start,last) end,
+		["IsNumeric"] = function() end,
 }
 function CreateEditBox( name, ... )
 	me = {}
@@ -718,8 +724,14 @@ function CombatLogGetCurrentEventInfo()
 	-- set CombatLogCurrentEventInfo = {} to return specific data.
 	-- timestamp,event,hideCaster,srcGUID,srcName,srcFlags,srcFlags2,
 	--		targetGUID,targetName,targetFlags,targetFlags2,spellId = CombatLogGetCurrentEventInfo()
-
 	return unpack( CombatLogCurrentEventInfo )
+end
+function IterateCombatLog( file, text, realtime )
+	-- Support function
+	-- file: file to parse for data,
+	-- text: text instead
+	-- realtime: simulate delays between events based on recorded timestamp
+
 
 end
 function CombatTextSetActiveUnit( who )
@@ -868,6 +880,9 @@ function GetStatistic( statID )
 
 	return Achievements[statID].value
 end
+function GetCombatRating( ratingEnum )
+	return 2734
+end
 function GetComparisonStatistic( achievementID )
 	-- https://wowwiki.fandom.com/wiki/API_GetComparisonStatistic
 	-- achievementID: integer - ID of the achievement
@@ -908,6 +923,8 @@ end
 
 C_Container = {}
 C_Container.SortBagsRightToLeft = false -- this is normal
+function C_Container.GetContainerItemID( bagId, slotId )
+end
 function C_Container.GetContainerItemInfo( bagId, slotId )
 end
 function C_Container.GetContainerItemLink( bagId, slotId )
@@ -1263,17 +1280,7 @@ function GetTradeSkillRecipeLink( index )
 	return TradeSkillItems[index].elink
 end
 function GetUnitName( lookupStr )
-	lookupStr = string.lower( lookupStr )
-	-- return the player's UnitName if asking for "player"
-	if lookupStr == "player" then
-		return UnitName( lookupStr )
-	end
-	_, _, partyType, partyIndex = string.find( lookupStr, "(%S+)(%d+)" )
-	partyIndex = tonumber( partyIndex )
-	-- only return the indexed playername if the party type matches, and the index exists
-	if( myParty[partyType] and myParty.roster[partyIndex] ) then
-		return myParty.roster[partyIndex]
-	end
+	error("This is deprecated")
 end
 function GetUnitSpeed( lookupStr )
 	lookupStr = string.lower( lookupStr )
@@ -1331,6 +1338,9 @@ end
 function IsFlying()
 end
 function IsMounted()
+end
+function GetCritChance()
+	return 25.42345
 end
 function GetCursorInfo()
 end
@@ -1566,8 +1576,15 @@ end
 function UnitClass( who )
 	return Units[who].class, Units[who].classCAPS, Units[who].classIndex
 end
+function UnitExists( who )
+	return Units[who] and true or nil
+end
 function UnitGUID( who )
 	return "playerGUID"
+end
+function UnitGroupRolesAssigned( who )
+	print( "UnitGroupRolesAssigned( "..who.." )")
+	return Units[who].role
 end
 function UnitHealthMax( who )
 	-- http://wowwiki.wikia.com/wiki/API_UnitHealth
@@ -1609,6 +1626,10 @@ end
 function UnitSex( who )
 	-- 1 = unknown, 2 = Male, 3 = Female
 	return Units[who].sex
+end
+function UnitStat( unitID, statID )
+	stats = { 15, 20, 25, 30 } -- str, agil, stam, int
+	return stats[statID], stats[statID], 0, 0
 end
 function UnitXP( who )
 	return 100
@@ -1925,6 +1946,65 @@ Menu = {}
 function Menu.ModifyMenu( ... )
 end
 
+----------
+-- C_Timer
+----------
+C_Timer = {}
+function C_Timer.After( seconds, callback )
+end
+
+----------
+-- C_QuestLog
+----------
+C_QuestLog = {}
+function C_QuestLog.IsQuestFlaggedCompleted( qnum )
+	return ( qnum % 2 == 0 and true or false )
+end
+function C_QuestLog.GetTitleForQuestID( qnum )
+	return "Test Quest"
+end
+
+----------
+-- C_TaskQuest
+----------
+C_TaskQuest = {}
+function C_TaskQuest.GetQuestInfoByQuestID( qnum )
+end
+
+----------
+-- C_ClassTalents
+----------
+C_ClassTalents = {}
+function C_ClassTalents.GetActiveConfigID()
+end
+
+----------
+-- C_Traits
+----------
+C_Traits = {}
+function C_Traits.GetConfigInfo( id )
+	return {["ID"] = 13659962, ["name"] = "Holy", ["treeIDs"] = {790}, ["type"] = 1, ["usesSharedActionBars"] = false}
+end
+function C_Traits.GenerateImportString( configID )
+	return "someReallyLongString"
+end
+
+----------
+-- PlayerUtil
+----------
+PlayerUtil = {}
+function PlayerUtil.GetCurrentSpecID()
+	return {65, "Holy", "Desc", 135920, "HEALER", 4}
+end
+
+----------
+-- C_PlayerInfo
+----------
+C_PlayerInfo = {}
+function C_PlayerInfo.GetPlayerMythicPlusRatingSummary( unitStr )
+	return {["runs"] = {}, ["currentSeasonScore"] = 0 }
+end
+
 -- A SAX parser takes a content handler, which provides these methods:
 --     startDocument()                 -- called at the start of the Document
 --     endDocument()                   -- called at the end of the Document
@@ -2075,15 +2155,24 @@ function saxParser.parse( fileIn )
 	end
 end
 function ParseXML( xmlFile )
+	parents = {}
 	ch = contentHandler
 	ch.startElement = function( self, tagIn, attribs )
 		if _G["Create"..tagIn] then
-			if attribs.name then
-				_G[attribs.name] = _G["Create"..tagIn]( attribs.name )
-				_G[attribs.name].framename = attribs.name
-			else
-				fail("A "..tagIn.." needs a name")
+			if (attribs.name and (not attribs.virtual or attribs.virtual == "false")) then
+				-- print("Create: "..attribs.name..">"..(#parents > 0 and string.gsub(attribs.name, "$parent", parents[#parents]) or "") )
+				frameName = (#parents > 0 and string.gsub(attribs.name, "$parent", parents[#parents]) or attribs.name)
+				_G[frameName] = _G["Create"..tagIn]( frameName )
+				_G[frameName].framename = frameName
 			end
+		end
+		if string.find( tagIn, "Frame$") then
+			table.insert( parents, attribs.name )
+		end
+	end
+	ch.endElement = function( self, tagIn )
+		if string.find( tagIn, "Frame$" ) then
+			table.remove( parents )
 		end
 	end
 	parser = saxParser.makeParser()
