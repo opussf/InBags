@@ -1,7 +1,7 @@
 -----------------------------------------
 -- Author  :  Opussf
--- Date    :  December 07 2024
--- Revision:  9.5-14-gb4ad3de
+-- Date    :  June 23 2025
+-- Revision:  9.5.1-7-g826b11b
 -----------------------------------------
 -- These are functions from wow that have been needed by addons so far
 -- Not a complete list of the functions.
@@ -30,6 +30,14 @@ chatLog = {
 
 local itemDB = {
 }
+
+_G["GUILD"] = "Guild"
+_G["INSTANCE"] = "instance"
+_G["PARTY"] = "Party"
+_G["RAID"] = "Raid"
+_G["SAY"] = "Say"
+_G["WHISPER"] = "Whisper"
+_G["YELL"] = "Yell"
 
 -- simulate an internal inventory
 -- myInventory = { ["9999"] = 52, }
@@ -66,6 +74,7 @@ myStatistics = {
 	[60] = 42  -- 60 = deaths
 }
 myLocale = "enUS"
+myZone = {["Zone"] = "Thing", ["Sub"] = "Sub"}
 
 registeredPrefixes = {}
 
@@ -128,6 +137,8 @@ Currencies = {
 	[396] = { ["name"] = "Valor",    ["texturePath"] = "", ["weeklyMax"] = 0, ["totalMax"] = 0, isDiscovered = true, ["link"] = ""},
 	[402] = { ["name"] = "Ironpaw Token", ["texturePath"] = "", ["weeklyMax"] = 0, ["totalMax"] = 0, isDiscovered = true, ["link"] = "|cff9d9d9d|Hcurrency:402:0:0:0:0:0:0:0:80:0:0|h[Ironpaw Token]|h|r"},
 	[703] = { ["name"] = "Fictional Currency", ["texturePath"] = "", ["weeklyMax"] = 1000, ["totalMax"] = 4000, isDiscovered = true, ["link"] = "|cffffffff|Hcurrency:703|h[Fictional Currency]|h|r"},
+	[824] = { ["name"] = "Garrison Resources", ["texturePath"] = "", ["quantity"] = 100 },
+	[3044]= { ["name"] = "Engineering Concentration", ["totalMax"] = 1000}
 }
 ArchaeologyCurrencies = {"999",}
 MerchantInventory = {
@@ -225,10 +236,11 @@ FACTION_STANDING_LABEL5 = "Friendly"
 FACTION_STANDING_LABEL6 = "Honored"
 FACTION_STANDING_LABEL7 = "Revered"
 FACTION_STANDING_LABEL8 = "Exalted"
-FACTION_STANDING_INCREASED = "Reputation with %s increased by %d"
-FACTION_STANDING_DECREASED = "Reputation with %s decreased by %d"
-FACTION_STANDING_INCREASED_ACCOUNT_WIDE = "Your Warband's reputation with %s increased by %d"
-FACTION_STANDING_DECREASED_ACCOUNT_WIDE = "Your Warband's reputation with %s decreased by %d"
+FACTION_STANDING_INCREASED = "Reputation with %s increased by %d."
+FACTION_STANDING_DECREASED = "Reputation with %s decreased by %d."
+FACTION_STANDING_INCREASED_GUARDIAN = "%s has gained %d guardian experience points."
+FACTION_STANDING_INCREASED_ACCOUNT_WIDE = "Your Warband's reputation with %s increased by %d."
+FACTION_STANDING_DECREASED_ACCOUNT_WIDE = "Your Warband's reputation with %s decreased by %d."
 
 COMBATLOG_OBJECT_AFFILIATION_OUTSIDER = 8
 COMBATLOG_XPGAIN_FIRSTPERSON = "%s dies, you gain %d experience."
@@ -454,8 +466,8 @@ Frame = {
 		["GetHeight"] = function(self) return( self.height ); end,
 		["SetMovable"] = function(self, value) self.movable = value end,
 		["CreateFontString"] = function(self, ...) return(CreateFontString(...)) end,
-		["SetSize"] = function(self, x, y) end,
-		["GetSize"] = function(self) return 400,125 end,
+		["SetSize"] = function(self, x, y) self.width=x; self.height=y; end,
+		["GetSize"] = function(self) return self.width,self.height end,
 		["ClearAllPoints"] = function(self) self.points={}; end,
 		["GetPoint"] = function(self) end,
 		["GetNumPoints"] = function(self) end,
@@ -463,6 +475,7 @@ Frame = {
 
 		["SetMinMaxValues"] = function(self, min, max) self.min=min; self.max=max; end,
 		["SetValue"] = function(self, value) self.value=value end,
+		["GetValue"] = function(self) return self.value end,
 		["SetStatusBarColor"] = function() end,
 		["SetScript"] = function(self, event, func) end,
 		["SetAttribute"] = function() end,
@@ -646,7 +659,13 @@ function CreateButton( name, ... )
 	me.name = name
 	return me
 end
-
+function UIDropDownMenu_Initialize( self )
+end
+function UIDropDownMenu_JustifyText( self, justify )
+end
+function UIDropDownMenu_GetText( self )
+	return ""
+end
 function ChatFrame_AddMessageEventFilter()
 end
 
@@ -1139,12 +1158,18 @@ Returns:
 ]]
 	return "Dwarf", "", 384, 0, 100, 200
 end
+
+-- 7, Mining
+-- 8, Engineering
+-- 10, arch
+-- 9, Fishing
+-- 6, Cooking
 function GetProfessions()
 	-- prof1, prof2, archaeology, fishing, cooking, firstAid = GetProfessions();
 	return 5, 6, 7, 8, 9
 end
 ProfessionInfo = {
-	[5] = { "prof1", "icon", 75, 300, 3, 3, 3, 3, 3, 3, "Catacylism prof1" },
+	[5] = { "Engineering", "icon", 75, 300, 3, 3, 3, 3, 3, 3, "Khaz Algar Engineering" },
 	[6] = { "prof2", "icon", 75, 300, 3, 3, 3, 3, 3, 3, "Catacylism prof2" },
 	[7] = { "Archaeology", "icon", 75, 300, 3, 3, 3, 3, 3, 3, "Catacylism Arch" },
 	[8] = { "Fishing", "icon", 75, 300, 3, 3, 3, 3, 3, 3, "Catacylism Fishing" },
@@ -1190,9 +1215,25 @@ function GetNumRoutes( nodeId )
 	-- returns numHops
 	return TaxiNodes[nodeId].hops
 end
+mySavedInstances = {}
+-- mySavedInstances = { { "raidName", id, secondsUntilLockResets, difficulty(number),
+--      isLocked(bool), isExtended(bool), instanceIDMostSig?(number), isRaid(bool),
+--      maxPlayers(number), "difficulty", numEncounters(number), encounterProgress(number),
+--      {{bossName, fileDataID, isKilled, unknown}, {}, ...} }, {}, ... }
 function GetNumSavedInstances()
-	-- @TODO: Research this
-	return 0
+	-- https://addonstudio.org/wiki/WoW:API_GetNumSavedInstances
+	--     numInstances (Number) - number of instances saved to, zero if none
+	-- See GetSavedInstanceInfo
+	return #mySavedInstances
+end
+function GetSavedInstanceInfo( index )
+	-- https://addonstudio.org/wiki/WoW:API_GetSavedInstanceInfo
+	-- name, id, reset, difficulty, locked, extended, instanceIDMostSig, isRaid, maxPlayers, difficultyName, numEncounters, encounterProgress = GetSavedInstanceInfo(index)
+	-- add the above info as a table to mySavedInstances
+	return table.unpack( mySavedInstances[index] )
+end
+function GetSavedInstanceEncounterInfo( raidIndex, bossIndex )
+	return table.unpack( mySavedInstances[raidIndex][13][bossIndex] )
 end
 -- GetNumTradeSkills is deprecated
 --function GetNumTradeSkills( )
@@ -1300,6 +1341,12 @@ end
 function GetXPExhaustion()
 	-- TODO:
 	return 3618
+end
+function GetZoneText()
+	return myZone.Zone
+end
+function GetSubZoneText()
+	return myZone.Sub
 end
 function InterfaceOptionsFrame_OpenToCategory()
 end
@@ -1594,6 +1641,9 @@ function UnitFactionGroup( who )
 	-- http://www.wowwiki.com/API_UnitFactionGroup
 	return unpack( Units[who].faction )
 end
+function UnitIsBattlePet( who )
+	return Units[who].isBattlePet
+end
 function UnitIsDeadOrGhost( who )
 end
 function UnitIsPVP( who )
@@ -1658,8 +1708,24 @@ end
 C_TradeSkillUI = {}
 function C_TradeSkillUI.GetAllRecipeIDs()
 	-- returns an array of RecipeIDs
+	return {}
 end
 function C_TradeSkillUI.GetAllRecipeLink(recipeID)
+end
+function C_TradeSkillUI.GetChildProfessionInfos()
+	-- https://warcraft.wiki.gg/wiki/API_C_TradeSkillUI.GetChildProfessionInfo
+	return {
+		{	["profession"] = 8,
+			["professionID"] = 2875,
+			["professionName"] = "Khaz Algar Engineering",
+		},
+	}
+end
+function C_TradeSkillUI.GetConcentrationCurrencyID( professionID )
+	local stuff = {
+		[2875] = 3044
+	}
+	return stuff[professionID]
 end
 function C_TradeSkillUI.GetRecipeInfo(recipeID)
 	--disabled : boolean
@@ -1819,15 +1885,21 @@ myMacros = {
 		table.sort( myMacros.personal, function( l, r ) return( l.name < r.name ); end )
 	end,
 }
+function GetNumMacros()
+	-- return number of global, number of personal
+	return #myMacros.general, #myMacros.personal
+end
 function GetMacroInfo( macroName )
 	-- returns:  macroName, macroIcon, macroText
 	if macroName then
-		local mIndex = GetMacroIndexByName( macroName )
+		local mIndex = tonumber(macroName) or GetMacroIndexByName( macroName )
 		if mIndex ~= 0 then
 			local location = mIndex > 120 and "personal" or "general"
 			mIndex = mIndex>120 and mIndex-120 or mIndex
-			return myMacros[location][mIndex].name, myMacros[location][mIndex].icon, myMacros[location][mIndex].text
-    	end
+			if myMacros[location][mIndex] then
+				return myMacros[location][mIndex].name, myMacros[location][mIndex].icon, myMacros[location][mIndex].text
+			end
+		end
 	end
 end
 function GetMacroIndexByName( macroName )
@@ -1896,6 +1968,159 @@ function PlayerHasToy( id )
 end
 function C_ToyBox.IsToyUsable( id )
 	return toyList[id] and toyList[id][1]
+end
+function C_ToyBox.PickupToyBoxItem( itemIn )
+	-- http://www.wowwiki.com/API_PickupItem
+	-- itemString is:
+	--   ItemID (Numeric value)
+	--   ItemString (item:#######)
+	--   ItemName ("Hearthstone")
+	--   ItemLink (Full link text as if Shift-Clicking Item)
+	-- Should only pick up an item that you know about. (in bags for now (myInventory) )
+	-- -- Note: Does not pick up an item from equipped inventory
+	-- Not sure what this should do if there is already something on the cursor
+	onCursor={}
+	onCursor['item'] = itemID
+end
+
+----------
+-- Settings
+----------
+Settings = {}
+function Settings.OpenToCategory( id )
+end
+function Settings.RegisterCanvasLayoutCategory( frame, name )
+	-- return a category structure
+	return ( {["GetID"] = function() return 234; end} )
+end
+function Settings.RegisterAddOnCategory(category)
+end
+
+----------
+-- C_Reputation
+----------
+C_Reputation = {}
+function C_Reputation.GetFactionDataByID( idIn )
+	for _, factionData in pairs( FactionInfo ) do
+		if factionData.factionID == idIn then
+			return factionData
+		end
+	end
+end
+function C_Reputation.GetFactionParagonInfo()
+end
+
+----------
+-- C_GossipInfo
+----------
+C_GossipInfo = {}
+function C_GossipInfo.GetFriendshipReputation( idIn )
+	return {["maxRep"]=0, ["text"]="", ["reversedColor"]=false, ["reaction"]="", ["standing"]=0, ["reactionThreshold"]=0, ["friendshipFactionID"]=0, ["textrue"]=0}
+end
+
+----------
+-- C_Item
+----------
+C_Item = {}
+C_Item.GetItemCount = GetItemCount
+
+----------
+-- Menu
+----------
+Menu = {}
+function Menu.ModifyMenu( ... )
+end
+
+----------
+-- C_Timer
+----------
+C_Timer = {}
+function C_Timer.After( seconds, callback )
+	-- just call the callback
+	callback()
+end
+
+----------
+-- C_QuestLog
+----------
+C_QuestLog = {}
+function C_QuestLog.IsQuestFlaggedCompleted( qnum )
+	return ( qnum % 2 == 0 and true or false )
+end
+function C_QuestLog.GetTitleForQuestID( qnum )
+	return "Test Quest"
+end
+
+----------
+-- C_TaskQuest
+----------
+C_TaskQuest = {}
+function C_TaskQuest.GetQuestInfoByQuestID( qnum )
+end
+
+----------
+-- C_ClassTalents
+----------
+C_ClassTalents = {}
+function C_ClassTalents.GetActiveConfigID()
+end
+
+----------
+-- C_Traits
+----------
+C_Traits = {}
+function C_Traits.GetConfigInfo( id )
+	return {["ID"] = 13659962, ["name"] = "Holy", ["treeIDs"] = {790}, ["type"] = 1, ["usesSharedActionBars"] = false}
+end
+function C_Traits.GenerateImportString( configID )
+	return "someReallyLongString"
+end
+
+----------
+-- PlayerUtil
+----------
+PlayerUtil = {}
+function PlayerUtil.GetCurrentSpecID()
+	return {65, "Holy", "Desc", 135920, "HEALER", 4}
+end
+
+----------
+-- C_PlayerInfo
+----------
+C_PlayerInfo = {}
+function C_PlayerInfo.GetPlayerMythicPlusRatingSummary( unitStr )
+	return {["runs"] = {}, ["currentSeasonScore"] = 0 }
+end
+
+----------
+-- C_DateAndTime
+----------
+C_DateAndTime = {}
+-- These functions return a non-lua-normal struct.
+-- year 	number 	The current year (e.g. 2019)
+-- month 	number 	The current month [1-12]
+-- monthDay 	number 	The current day of the month [1-31]
+-- weekday 	number 	The current day of the week (1=Sunday, 2=Monday, ..., 7=Saturday)
+-- hour 	number 	The current time in hours [0-23]
+-- minute 	number 	The current time in minutes [0-59]
+C_DateAndTimeTS = time()  -- set this to control what is returned
+function C_DateAndTime.GetCurrentCalendarTime()
+	-- This is the realm's current time
+	local out = date( "*t", C_DateAndTimeTS )
+	out.monthDay = out.day; out.day = nil
+	out.weekday = out.wday; out.wday = nil
+	out.yday = nil
+	out.isdst = nil
+	out.sec = nil
+	return out
+end
+
+-------
+-- EventRegistry
+-------
+EventRegistry = {}
+
+function EventRegistry.RegisterCallback( self )
 end
 
 ----------
@@ -2191,22 +2416,19 @@ function ParseTOC( tocFile, useRequire )
 	local f = io.open( tocFile, "r" )
 	if f then
 		local tocContents = f:read( "*all" )
-		while true do
-			local linestart, lineend, line = string.find( tocContents, "(.-)\n" )
-			if linestart then
-				local lua, luaEnd, luaFile = string.find( line, "([_%a]*)%.lua" )
-				local xml, xmlEnd, xmlFile = string.find( line, "([_%a]*)%.xml" )
-				local hash, hashEnd, hashKey, hashValue = string.find( line, "## ([_%a]*): (.*)" )
-				if( hash ) then
-					addonData[ hashKey ] = hashValue
-				elseif( lua ) then
-					table.insert( tocFileTable, { "lua", luaFile } )
-				elseif( xml ) then
-					table.insert( tocFileTable, { "xml", xmlFile } )
+		for line in tocContents:gmatch("([^\n]*)\n?") do
+			if line ~= "" then
+				local luaFile = line:match("([_%a][_%w]*)%.lua")
+				local xmlFile = line:match("([_%a][_%w]*)%.xml")
+				local hashKey, hashValue = line:match("## ([_%a]*): (.*)")
+
+				if hashKey then
+					addonData[hashKey] = hashValue
+				elseif luaFile then
+					table.insert(tocFileTable, { "lua", luaFile })
+				elseif xmlFile then
+					table.insert(tocFileTable, { "xml", xmlFile })
 				end
-				tocContents = string.sub( tocContents, lineend+1 )
-			else
-				break
 			end
 		end
 		pathSeparator = string.sub(package.config, 1, 1)
