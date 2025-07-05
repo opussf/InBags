@@ -124,7 +124,6 @@ function InBags.BANKFRAME_OPENED()
 				if (InBags.me[itemStruct.itemID]) then
 					print( itemStruct.hyperlink.." is in ("..bag..", "..slot..") "..itemStruct.stackCount )
 					inBags[itemStruct.itemID] = inBags[itemStruct.itemID] or GetItemCount( itemStruct.itemID, false ) -- only in bags
--- 	-- 				inBags[itemStruct.itemID] = inBags[itemStruct.itemID] or 0 -- Assume that you have cleared out the bags
 					local toMove = InBags.me[itemStruct.itemID].inBags - inBags[itemStruct.itemID]
 					-- print( "inBags: "..inBags[itemStruct.itemID].."->"..toMove )
 					if ( toMove > 0 ) then
@@ -135,10 +134,10 @@ function InBags.BANKFRAME_OPENED()
 						C_Container.SplitContainerItem( bag, slot, moving )	-- pick up an amount
 						print( "pick up "..moving.." from "..bag..", "..slot )
 						if( targetBagID == 0 and toMove > 0 ) then
--- 	-- 						-- print( "put in backpack." )
+							-- print( "put in backpack." )
 							PutItemInBackpack()
 						else
--- 	-- 						-- print( "put in bag: "..targetBagID )
+							-- print( "put in bag: "..targetBagID )
 							PutItemInBag( targetBagID + 30 )
 						end
 
