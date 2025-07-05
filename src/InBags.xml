@@ -4,7 +4,7 @@ xsi:schemaLocation="http://www.blizzard.com/wow/ui/
 ..\..\FrameXML\UI.xsd">
 	<Frame name="InBags_Frame" frameStrata="BACKGROUND" toplevel="false" enableMouse="false" movable="false" parent="UIParent">
 		<Scripts>
-			<OnLoad>InBags.OnLoad();self:Hide();</OnLoad>
+			<OnLoad>InBags.OnLoad()</OnLoad>
 			<OnEvent>InBags[event](self, ...)</OnEvent>
 		</Scripts>
 	</Frame>
