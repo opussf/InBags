@@ -27,8 +27,14 @@ function InBags.Print( msg, showName)
 end
 
 function InBags.OnLoad()
-	SLASH_INBAGS1 = "/INBAGS"
-	SlashCmdList["INBAGS"] = function( msg ) InBags.Command( msg); end
+	SLASH_IC1 = "/ic"
+	SlashCmdList["IC"] = function( msg ) InBags.Command( msg ); end
+	-- SLASH_INBAGS1 = "/INBAGS"
+	-- SlashCmdList["INBAGS"] = function( msg ) InBags.Command( "bags", msg ); end
+	-- SLASH_INBANK1 = "/INBANK"
+	-- SlashCmdList["INBANK"] = function( msg ) InBags.Command( "bank", msg ); end
+	-- SLASH_INWBB1 = "/INWBB"
+	-- SlashCmdList["INWBB"] = function( msg ) InBags.Command( "wbb", msg ); end
 
 	InBags_Frame:RegisterEvent( "ADDON_LOADED" )
 	InBags_Frame:RegisterEvent( "VARIABLES_LOADED" )
@@ -70,23 +76,45 @@ function InBags.BANKFRAME_OPENED()
 	InBags.bankOpen = true
 	InBags.Print( "Bank opened" )
 	-- make action structure
-	InBags.actions = {}
-	for itemID, itemInfo in pairs( InBags.me ) do
-		local youHave = GetItemCount( itemID, true ) -- include bank
-		local inBags = GetItemCount( itemID, false ) -- only in bags
-		local inAccount = C_Item.GetItemCount( itemID, false, false, false, true ) - inBags  -- warband bank?
-		InBags.Print( itemID.." you have: "..youHave..", of which "..inBags.."/"..itemInfo.inBags.." are in your bags." )
-		if inBags > itemInfo.inBags then
-			InBags.actions[itemID] = InBags.actions[itemID] or {}
-			InBags.actions[itemID].toBank = inBags - itemInfo.inBags
-		elseif inBags < itemInfo.inBags then
-			InBags.actions[itemID] = InBags.actions[itemID] or {}
-			InBags.actions[itemID].toBags = itemInfo.inBags - inBags
+	for bag = 0, NUM_BAG_SLOTS+1 do
+		for slot = 1, C_Container.GetContainerNumSlots( bag ) do
+			local itemStruct = C_Container.GetContainerItemInfo( bag, slot )  -- get the item info
+			if( itemStruct ) then  -- an item is found
+
+			end
 		end
 	end
 
+
+
+
+
+
+	InBags.actions = {}
+	InBags.actions.events = {}
+
+	---- @TODO: Revisit this.
+
+
+
+
+	-- for itemID, itemInfo in pairs( InBags.me ) do
+	-- 	local youHave = GetItemCount( itemID, true ) -- include bank
+	-- 	local inBags = GetItemCount( itemID, false ) -- only in bags
+	-- 	local inAccount = C_Item.GetItemCount( itemID, false, false, false, true ) - inBags  -- warband bank?
+	-- 	InBags.Print( itemID.." you have "..youHave.." (bags: "..inBags.." wbb: "..inAccount.."),  of which "..inBags.."/"..itemInfo.inBags.." are in your bags." )
+	-- 	if inBags > itemInfo.inBags then
+	-- 		InBags.actions[itemID] = InBags.actions[itemID] or {}
+	-- 		InBags.actions[itemID].toBank = inBags - itemInfo.inBags
+	-- 	elseif inBags < itemInfo.inBags then
+	-- 		InBags.actions[itemID] = InBags.actions[itemID] or {}
+	-- 		InBags.actions[itemID].toBags = itemInfo.inBags - inBags
+	-- 	end
+	-- end
+
 	-- scan bags, create events
 
+	print( NUM_BAG_SLOTS )
 	InBags.actions.events = {}
 	for bag = 0, NUM_BAG_SLOTS+1 do  -- loop through bag slots
 		for slot = 1, C_Container.GetContainerNumSlots( bag ) do -- loop through slots in bag, if it is a bag
@@ -278,37 +306,55 @@ function InBags.BANKFRAME_CLOSED()
 end
 -- function InBags.PLAYER_LEAVING_WORLD()
 -- end
+function InBags.WBB( params )
+	print( "WBB( "..params.." )" )
+	local itemID, quantity = InBags.ParseParameters( params )
+	print( itemID, type( itemID ), quantity )
+	InBags_data[itemID] = quantity
+end
+function InBags.Bank( params )
+	print( "Bank( "..params.." )" )
+	local itemID, quantity = InBags.ParseParameters( params )
+	print( itemID, type( itemID ), quantity )
+	InBags.me[itemID] = { bank = quantity }
+end
+function InBags.Bags( params )
+	print( "Bags( "..params.." )" )
+	local itemID, quantity = InBags.ParseParameters( params )
+	print( itemID, type( itemID ), quantity )
+	InBags.me[itemID] = { bags = quantity }
+end
 
-function InBags.AddItem( itemLink, p2 )
-	-- print( itemLink..":"..p2 )
-	quantity = p2 and tonumber(p2) or 1
-	local itemID = InBags.getItemIdFromLink( itemLink )
-	if itemID and string.len( itemID ) > 0 then
-		local youHave = GetItemCount( itemID, true ) -- include bank
-		local inBags = GetItemCount( itemID, false ) -- only in bags
-		InBags.Print( string.format( "You have %d (%d in bank), and you want %d in your bags.", youHave, youHave-inBags, quantity ) )
-		if (INEED and INEED.AddItem and quantity>youHave) then
-			INEED.AddItem( itemLink, quantity )
-		end
-		InBags.me[tonumber(itemID)] = {["inBags"] = quantity}
-	end
-end
-function InBags.List()
-	for itemID, struct in pairs( InBags.me ) do
-		link = select( 2, GetItemInfo( itemID ) )
-		InBags.Print( string.format( "%s inBags: %d", link, struct.inBags ) )
-	end
-end
-function InBags.Delete( itemLink )
-	print( "delete "..itemLink )
-	local itemID = InBags.getItemIdFromLink( itemLink )
-	if itemID and string.len( itemID ) > 0 then
-		itemID = tonumber(itemID)
-		if InBags.me[itemID] then
-			InBags.me[itemID] = nil
-		end
-	end
-end
+-- function InBags.AddItem( itemLink, p2 )
+-- 	-- print( itemLink..":"..p2 )
+-- 	quantity = p2 and tonumber(p2) or 1
+-- 	local itemID = InBags.getItemIdFromLink( itemLink )
+-- 	if itemID and string.len( itemID ) > 0 then
+-- 		local youHave = GetItemCount( itemID, true ) -- include bank
+-- 		local inBags = GetItemCount( itemID, false ) -- only in bags
+-- 		InBags.Print( string.format( "You have %d (%d in bank), and you want %d in your bags.", youHave, youHave-inBags, quantity ) )
+-- 		if (INEED and INEED.AddItem and quantity>youHave) then
+-- 			INEED.AddItem( itemLink, quantity )
+-- 		end
+-- 		InBags.me[tonumber(itemID)] = {["inBags"] = quantity}
+-- 	end
+-- end
+-- function InBags.List()
+-- 	for itemID, struct in pairs( InBags.me ) do
+-- 		link = select( 2, GetItemInfo( itemID ) )
+-- 		InBags.Print( string.format( "%s inBags: %d", link, struct.inBags ) )
+-- 	end
+-- end
+-- function InBags.Delete( itemLink )
+-- 	print( "delete "..itemLink )
+-- 	local itemID = InBags.getItemIdFromLink( itemLink )
+-- 	if itemID and string.len( itemID ) > 0 then
+-- 		itemID = tonumber(itemID)
+-- 		if InBags.me[itemID] then
+-- 			InBags.me[itemID] = nil
+-- 		end
+-- 	end
+-- end
 
 function InBags.getItemIdFromLink( itemLink )
 	-- returns just the integer itemID
@@ -317,32 +363,29 @@ function InBags.getItemIdFromLink( itemLink )
 		return strmatch( itemLink, "item:(%d*)" )
 	end
 end
-
+function InBags.ParseParameters( params )
+	local item, quantity, all = strmatch( params, "^(|c.*|r)%s*(%d*)%s*$" )
+	print( item, quantity, all )
+	return InBags.getItemIdFromLink( item ), (all or tonumber( quantity ))
+end
 function InBags.ParseCmd(msg)
-	if msg then
-		local i,c,f = strmatch(msg, "^(|c.*|r)%s*(%d*)%s*(%S*)$")
-		if i then  -- i is an item, c is a count or nil
-			return i, c..(f and " "..f)
-		else  -- Not a valid item link
-			msg = string.lower(msg)
-			local a,b,c = strfind(msg, "(%S+)")  --contiguous string of non-space characters
-			if a then
-				-- c is the matched string, strsub is everything after that, skipping the space
-				return c, strsub(msg, b+2)
-			else
-				return ""
-			end
-		end
+	msg = string.lower(msg)
+	local a,b,c = strfind(msg, "(%S+)")  --contiguous string of non-space characters
+	if a then
+		-- c is the matched string, strsub is everything after that, skipping the space
+		return c, strsub(msg, b+2)
+	else
+		return ""
 	end
 end
-function InBags.Command(msg)
+function InBags.Command( msg)
 	local cmd, param = InBags.ParseCmd(msg)
 	-- print( cmd..":"..param )
 	local cmdFunc = InBags.commandList[cmd]
 	if cmdFunc then
 		cmdFunc.func(param)
-	elseif (cmd and cmd ~= "") then
-		InBags.AddItem( cmd, param )
+	-- elseif (cmd and cmd ~= "") then
+	-- 	InBags.AddItem( cmd, param )
 	else
 		InBags.PrintHelp()
 	end
@@ -360,12 +403,24 @@ InBags.commandList = {
 		["func"] = InBags.PrintHelp,
 		["help"] = {"", "Print this help"},
 	},
-	["list"] = {
-		["func"] = InBags.List,
-		["help"] = {"", "List the tracked items"},
+	["wbb"] = {
+		["func"] = InBags.WBB,
+		["help"] = { "[itemLink] quantity", "Keep quantity in your warband bank." },
 	},
-	["rm"] = {
-		["func"] = InBags.Delete,
-		["help"] = {"ItemLink", "Stop tracking item"},
+	["bank"] = {
+		["func"] = InBags.Bank,
+		["help"] = { "[itemLink] quantity", "Keep quantity in your bank." },
 	},
+	["bags"] = {
+		["func"] = InBags.Bags,
+		["help"] = { "[itemLink] quantity", "Keep quantity in your bags." },
+	},
+	-- ["list"] = {
+	-- 	["func"] = InBags.List,
+	-- 	["help"] = {"", "List the tracked items"},
+	-- },
+	-- ["rm"] = {
+	-- 	["func"] = InBags.Delete,
+	-- 	["help"] = {"ItemLink", "Stop tracking item"},
+	-- },
 }
