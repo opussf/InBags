@@ -14,7 +14,6 @@ function test.before()
 	InBags.OnLoad()
 	InBags.ADDON_LOADED()
 	InBags.VARIABLES_LOADED()
-
 end
 function test.after()
 	chatLog = {}
@@ -38,20 +37,29 @@ function test.test_noCommand()
 end
 function test.test_bags_Itemlink()
 	InBags.Command( "bags |cff9d9d9d|Hitem:7073:0:0:0:0:0:0:0:80:0:0|h[Broken Fang]|h|r 10" )
-	assertEquals( 10, InBags_data["Test Realm"]["testPlayer"]["7073"].bags )
+	assertEquals( 10, InBags_data["Test Realm"]["testPlayer"][7073].bags )
+end
+function test.test_bags_Itemlink_remove()
+	InBags.Command( "bags |cff9d9d9d|Hitem:7073:0:0:0:0:0:0:0:80:0:0|h[Broken Fang]|h|r 10" )
+	InBags.Command( "bags |cff9d9d9d|Hitem:7073:0:0:0:0:0:0:0:80:0:0|h[Broken Fang]|h|r 0" )
+	assertIsNil( InBags_data["Test Realm"]["testPlayer"][7073].bags )
 end
 function test.test_bank_Itemlink()
 	InBags.Command( "bank |cff9d9d9d|Hitem:7073:0:0:0:0:0:0:0:80:0:0|h[Broken Fang]|h|r 10" )
-	assertEquals( 10, InBags_data["Test Realm"]["testPlayer"]["7073"].bank )
+	assertEquals( 10, InBags_data["Test Realm"]["testPlayer"][7073].bank )
+end
+function test.test_bank_Itemlink_remove()
+	InBags.Command( "bank |cff9d9d9d|Hitem:7073:0:0:0:0:0:0:0:80:0:0|h[Broken Fang]|h|r 10" )
+	InBags.Command( "bank |cff9d9d9d|Hitem:7073:0:0:0:0:0:0:0:80:0:0|h[Broken Fang]|h|r 0" )
+	assertIsNil( InBags_data["Test Realm"]["testPlayer"][7073].bank )
 end
 function test.test_warband_Itemlink()
 	InBags.Command( "wbb |cff9d9d9d|Hitem:7073:0:0:0:0:0:0:0:80:0:0|h[Broken Fang]|h|r 10")
-	assertEquals( 10, InBags_data["7073"] )
+	assertEquals( 10, InBags_data[7073] )
 end
 function test.test_openBank()
 	InBags.BANKFRAME_OPENED()
 	test.dump( chatLog )
-
 end
 
 -- Add Item
