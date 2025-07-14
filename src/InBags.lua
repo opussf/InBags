@@ -176,6 +176,10 @@ function InBags.Scan()
 					local youHave = C_Item.GetItemCount( itemStruct.itemID, true, true, true, true ) -- include bank, uses, reagent, not account
 					local wantInBags = ( not InBags.itemsInSets[itemStruct.itemID] and InBags.me[itemStruct.itemID] and
 							InBags.me[itemStruct.itemID].bags or (inWBB > 0 and 0) or nil )
+					if( INEED and INEED_data and INEED_data[itemStruct.itemID] and
+							INEED_data[itemStruct.itemID][InBags.realm] and INEED_data[itemStruct.itemID][InBags.realm][InBags.name] ) then
+						wantInBags = INEED_data[itemStruct.itemID][InBags.realm][InBags.name].needed
+					end
 					local wantInBank = ( InBags.me[itemStruct.itemID] and InBags.me[itemStruct.itemID].bank or nil )
 					markedToMove[itemStruct.itemID] = markedToMove[itemStruct.itemID] or 0
 					local toMove = 0
@@ -241,6 +245,10 @@ function InBags.Scan()
 					local youHave = C_Item.GetItemCount( itemStruct.itemID, true, true, true, true ) -- include bank, uses, reagent, not account
 					local wantInBags = ( InBags.me[itemStruct.itemID] and InBags.me[itemStruct.itemID].bags or
 							(inWBB > 0 and 0) or nil )
+					if( INEED and INEED_data and INEED_data[itemStruct.itemID] and
+							INEED_data[itemStruct.itemID][InBags.realm] and INEED_data[itemStruct.itemID][InBags.realm][InBags.name] ) then
+						wantInBags = INEED_data[itemStruct.itemID][InBags.realm][InBags.name].needed
+					end
 					local wantInBank = ( InBags.me[itemStruct.itemID] and InBags.me[itemStruct.itemID].bank or
 							(inWBB > 0 and 0) or nil )
 					-- InBags.Print( itemStruct.itemID.."("..bag..", "..slot.."): bags: "..inBags.." bank: "..inBank.." wbb: "..inWBB.." total: "..youHave  )
