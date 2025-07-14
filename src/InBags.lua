@@ -255,10 +255,11 @@ function InBags.BAG_UPDATE( self, bagID )
 					i, a.quantity, a.link, a.bag, a.slot, a.dest ), false )
 		end
 		local idx
-		local action
+		local action = nil
 		if bagID then -- find the index and structure of the first action for that bag
-			for idx, action in ipairs( InBags.actions ) do
-				if action.bag == bagID then
+			for idx, a in ipairs( InBags.actions ) do
+				if a.bag == bagID then
+					action = a
 					break
 				end
 			end
@@ -285,6 +286,9 @@ function InBags.BAG_UPDATE( self, bagID )
 					end
 				else
 					InBags.Print( "No Free slots found in "..action.dest.."." )
+					InBags.actions = {}
+					InBags.toScan = action.dest
+					InBags.Scan()
 				end
 				table.remove( InBags.actions, idx )
 			end
@@ -370,6 +374,10 @@ InBags.commandList = {
 	["bags"] = {
 		["func"] = InBags.Bags,
 		["help"] = { "[itemLink] quantity", "Keep quantity in your bags." },
+	},
+	["ignore"] = {
+		["func"] = InBags.Ignore,
+		["help"] = { "[itemLink]", "Ignore this item for all chars"},
 	},
 	["v"] = {
 		["func"] = function( v ) InBags.verbosity = v end,
