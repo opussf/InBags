@@ -52,6 +52,7 @@ function InBags.ADDON_LOADED()
 	InBags_Frame:UnregisterEvent( "ADDON_LOADED" )
 	InBags.realm = GetRealmName()
 	InBags.name = UnitName("player")
+	TooltipDataProcessor.AddTooltipPostCall( Enum.TooltipDataType.Item, InBags.onTooltipSetItem )
 end
 function InBags.VARIABLES_LOADED()
 	InBags_Frame:UnregisterEvent( "VARIABLES_LOADED" )
@@ -60,7 +61,12 @@ function InBags.VARIABLES_LOADED()
 	InBags.me = InBags_data[InBags.realm][InBags.name]
 	InBags.Print( "Loaded v"..InBags.MSG_VERSION )
 end
-function InBags.GetFirstOpenSlot( searchBags, itemID )
+function InBags.onTooltipSetItem( tooltip, tooltipdata )
+	itemID = tonumber(tooltipdata.id)
+
+
+end
+function InBags.GetFirstOpenSlot( searchBags )
 	-- Set this up to scan both bags and the bank in the future
 	if not searchBags then
 		searchBags = InBags.bagIDs.bags
@@ -69,17 +75,18 @@ function InBags.GetFirstOpenSlot( searchBags, itemID )
 		print( bag )
 		for slot = 1, C_Container.GetContainerNumSlots( bag ) do
 			local itemStruct = C_Container.GetContainerItemInfo( bag, slot )
-			if not itemStruct or itemStruct.itemID == itemID then
+			if not itemStruct then
 				return bag, slot
 			end
 		end
 	end
 end
 ----
-function InBags.AddAction( itemID, bag, slot, quantity, dest )
+function InBags.AddAction( itemID, link, bag, slot, quantity, dest )
 	-- this adds an action to the InBags.actions
 	-- move quantity of item from bag-slot to destination
-	table.insert( InBags.actions, {["itemID"] = itemID, ["bag"] = bag, ["slot"] = slot, ["quantity"] = quantity, ["dest"] = dest } )
+	table.insert( InBags.actions, {
+			["itemID"] = itemID, ["link"] = link, ["bag"] = bag, ["slot"] = slot, ["quantity"] = quantity, ["dest"] = dest } )
 end
 function InBags.BANKFRAME_OPENED()
 	InBags.bankOpen = true
@@ -113,11 +120,11 @@ function InBags.BANKFRAME_OPENED()
 					if( wantInBank and wantInBank > inBank ) then -- put it in the bank
 						print( wantInBank - inBank, inBags - (wantInBags or 0), itemStruct.stackCount )
 						countToMove = math.min( wantInBank - inBank, inBags - (wantInBags or 0), itemStruct.stackCount )
-						InBags.AddAction( itemStruct.itemID, bag, slot, countToMove, "bank" )
+						InBags.AddAction( itemStruct.itemID, itemStruct.hyperlink, bag, slot, countToMove, "bank" )
 					end
 					if( wantInWBB and wantInWBB > inWBB ) then -- put it in the WBB
 						countToMove = math.min( wantInWBB - inWBB, inBags - (wantInBags or 0) - countToMove, itemStruct.stackCount )
-						InBags.AddAction( itemStruct.itemID, bag, slot, countToMove, "wbb" )
+						InBags.AddAction( itemStruct.itemID, itemStruct.hyperlink, bag, slot, countToMove, "wbb" )
 					end
 				end
 			end
@@ -142,11 +149,11 @@ function InBags.BANKFRAME_OPENED()
 					-- print( "I can move some of "..itemStruct.hyperlink )
 					if( wantInBags and wantInBags > inBags ) then -- put in bags
 						countToMove = math.min( (wantInBags or 0) - inBags, inBank - wantInBank, itemStruct.stackCount )
-						InBags.AddAction( itemStruct.itemID, bag, slot, countToMove, "bags" )
+						InBags.AddAction( itemStruct.itemID, itemStruct.hyperlink, bag, slot, countToMove, "bags" )
 					end
 					if( wantInWBB and wantInWBB > inWBB ) then -- put it in the WBB
 						countToMove = math.min( wantInWBB - inWBB, inBags - (wantInBags or 0) - countToMove, itemStruct.stackCount )
-						InBags.AddAction( itemStruct.itemID, bag, slot, countToMove, "wbb" )
+						InBags.AddAction( itemStruct.itemID, itemStruct.hyperlink, bag, slot, countToMove, "wbb" )
 					end
 				end
 			end
@@ -172,11 +179,11 @@ function InBags.BANKFRAME_OPENED()
 					countToMove = wantInBags - inBags
 					InBags.Print( itemStruct.itemID.."("..bag..", "..slot.."): bags: "..inBags.." bank: "..inBank.." wbb: "..inWBB.." total: "..youHave  )
 					print( "I think I want to move "..countToMove.." to my bags.")
-					InBags.AddAction( itemStruct.itemID, bag, slot, countToMove, "bags" )
+					InBags.AddAction( itemStruct.itemID, itemStruct.hyperlink, bag, slot, countToMove, "bags" )
 				end
 				if( wantInBank and wantInBank > inBank ) then -- put it in the WBB
 					countToMove = math.min( wantInBank - inBank, inBags - wantInBags - countToMove )
-					InBags.AddAction( itemStruct.itemID, bag, slot, countToMove, "bank" )
+					InBags.AddAction( itemStruct.itemID, itemStruct.hyperlink, bag, slot, countToMove, "bank" )
 				end
 			end
 		end
@@ -185,34 +192,12 @@ function InBags.BANKFRAME_OPENED()
 	InBags.BAG_UPDATE( nil, nil )
 end
 
---[[
-
-for itemID in pairs( InBags.actions ) do
-		for _,struct in ipairs( InBags.actions[itemID] ) do
-			local itemStruct = C_Container.GetContainerItemInfo( struct.bag, struct.slot )
-			ClearCursor()
-			targetBag, targetSlot = InBags.GetFirstOpenSlot( InBags.bagIDs[struct.dist] )
-			print( string.format( "move %2i of %6i at (%i,%i) to %s (%i,%i)",
-					struct.quantity, itemID, struct.bag, struct.slot, struct.dest, targetBag, targetSlot ) )
-			if( struct.quantity < itemStruct.stackCount ) then -- split
-				C_Container.SplitContainerItem( struct.bag, struct.slot, struct.quantity )
-				C_
-
-			else
-				-- C_Container.PickupContainerItem( struct.bag, struct.slot )
-
-			end
-		end
-	end
-
-]]
-
 function InBags.BAG_UPDATE( self, bagID )
 	if InBags.bankOpen then
 		print( "BAG_UPDATE: "..( bagID or "nil" ) )
 		for i, a in ipairs( InBags.actions ) do
-			print( string.format( "%i: move %2i of %6i at (%i,%i) to %s",
-					i, a.quantity, a.itemID, a.bag, a.slot, a.dest ) )
+			print( string.format( "%i: move %2i of %s at (%i,%i) to %s",
+					i, a.quantity, a.link, a.bag, a.slot, a.dest ) )
 		end
 		local idx
 		local action
@@ -231,11 +216,11 @@ function InBags.BAG_UPDATE( self, bagID )
 			local itemStruct = C_Container.GetContainerItemInfo( action.bag, action.slot )
 			if itemStruct then
 				ClearCursor()
-				targetBag, targetSlot = InBags.GetFirstOpenSlot( InBags.bagIDs[action.dest], action.itemID )
+				targetBag, targetSlot = InBags.GetFirstOpenSlot( InBags.bagIDs[action.dest] )
 				print( "Search "..action.dest.." for an open slot. Got ("..(targetBag or "nil")..", "..(targetSlot or "nil")..")" )
 				if targetBag and targetSlot then
-					print( string.format( "%i: move %2i of %6i at (%i,%i) to %s (%i,%i)",
-							idx, action.quantity, action.itemID, action.bag, action.slot, action.dest, targetBag, targetSlot ) )
+					print( string.format( "%i: move %2i of %s at (%i,%i) to %s (%i,%i)",
+							idx, action.quantity, action.link, action.bag, action.slot, action.dest, targetBag, targetSlot ) )
 					if( action.quantity < itemStruct.stackCount ) then -- split
 						C_Container.SplitContainerItem( action.bag, action.slot, action.quantity )
 						C_Container.PickupContainerItem( targetBag, targetSlot )
@@ -247,20 +232,7 @@ function InBags.BAG_UPDATE( self, bagID )
 				table.remove( InBags.actions, idx )
 			end
 		end
-		-- if InBags.actions.events[bagID] then
-		-- 	InBags.Print( "Event for bag:"..bagID..": "..InBags.actions.events[bagID][1][1] )   --  [1] is first item, [1] is itemid
-		-- 	for slot = 1, C_Container.GetContainerNumSlots( bagID ) do
-		-- 		local itemStruct = C_Container.GetContainerItemInfo( bagID, slot )
-		-- 		if ( itemStruct and #InBags.actions.events[bagID] > 0 and itemStruct.itemID == InBags.actions.events[bagID][1][1] ) then
-		-- 			print( "Found a stack to move to the bank: "..bagID..","..slot..":"..itemStruct.itemID )
-		-- 			C_Container.UseContainerItem( bagID, slot )  -- Moves entire stack to bank
-		-- 			table.remove( InBags.actions.events[bagID], 1 )
-		-- 			if ( #InBags.actions.events[bagID] == 0 ) then
-		-- 				InBags.actions.events[bagID] = nil
-		-- 			end
-		-- 		end
-		-- 	end
-		-- end
+		print( "BAG_UPDATE DONE: "..(idx or "nil") )
 	end
 end
 function InBags.BANKFRAME_CLOSED()
