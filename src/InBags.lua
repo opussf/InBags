@@ -50,6 +50,7 @@ function InBags.OnLoad()
 	InBags_Frame:RegisterEvent( "BANKFRAME_OPENED" )
 	InBags_Frame:RegisterEvent( "BANKFRAME_CLOSED" )
 	InBags_Frame:RegisterEvent( "BAG_UPDATE" )
+	InBags_Frame:RegisterEvent( "PLAYER_LEAVING_WORLD" )
 end
 function InBags.ADDON_LOADED()
 	InBags_Frame:UnregisterEvent( "ADDON_LOADED" )
@@ -63,6 +64,30 @@ function InBags.VARIABLES_LOADED()
 	InBags_data[InBags.realm][InBags.name] = InBags_data[InBags.realm][InBags.name] or {}
 	InBags.me = InBags_data[InBags.realm][InBags.name]
 	InBags.Print( "Loaded v"..InBags.MSG_VERSION )
+end
+function InBags.PLAYER_LEAVING_WORLD()
+	local itemCount = 0
+	for i in pairs( InBags.me ) do
+		local destCount = 0
+		for dest, _ in pairs( InBags.me[i] ) do
+			destCount = destCount + 1
+		end
+		if destCount == 0 then
+			InBags.me[i] = nil
+		else
+			itemCount = itemCount + 1
+		end
+	end
+	if itemCount == 0 then
+		InBags_data[InBags.realm][InBags.name] = nil
+	end
+	itemCount = 0
+	for name in pairs( InBags_data[InBags.realm] ) do
+		itemCount = itemCount + 1
+	end
+	if itemCount == 0 then
+		InBags_data[InBags.realm] = nil
+	end
 end
 function InBags.onTooltipSetItem( tooltip, tooltipdata )
 	local itemID = tonumber(tooltipdata.id)
@@ -258,6 +283,8 @@ function InBags.BAG_UPDATE( self, bagID )
 						C_Container.PickupContainerItem( action.bag, action.slot )
 						C_Container.PickupContainerItem( targetBag, targetSlot )
 					end
+				else
+					InBags.Print( "No Free slots found in "..action.dest.."." )
 				end
 				table.remove( InBags.actions, idx )
 			end
