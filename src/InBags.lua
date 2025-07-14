@@ -17,9 +17,10 @@ InBags.COLOR_END = "|r"
 
 InBags_data = {}  -- [realm][name][itemid] = {}
 InBags.bagIDs = {
-	["bank"] = { -1, 6, 7, 8, 9, 10, 11, 12, -2 },
+	["bank"] = { -1, 6, 7, 8, 9, 10, 11, 12, -3 }, -- -1 is main bank slot, -3 is reagent bank bag
 	["wbb"] = { 13, 14, 15, 16, 17 },
 }
+InBags.verbosity = 1 -- 0 = off, 1 = normal, 2 = info, 3 = Debug
 
 function InBags.Print( msg, showName)
 	-- print to the chat frame
@@ -29,7 +30,11 @@ function InBags.Print( msg, showName)
 	end
 	DEFAULT_CHAT_FRAME:AddMessage( msg )
 end
-
+function InBags.Debug(level, msg, showName )
+	if level <= InBags.verbosity then
+		InBags.Print( msg, showName )
+	end
+end
 function InBags.OnLoad()
 	SLASH_IC1 = "/ic"
 	SlashCmdList["IC"] = function( msg ) InBags.Command( msg ); end
@@ -45,8 +50,6 @@ function InBags.OnLoad()
 	InBags_Frame:RegisterEvent( "BANKFRAME_OPENED" )
 	InBags_Frame:RegisterEvent( "BANKFRAME_CLOSED" )
 	InBags_Frame:RegisterEvent( "BAG_UPDATE" )
-
--- 	InBags_Frame:RegisterEvent( "PLAYER_LEAVING_WORLD" )
 end
 function InBags.ADDON_LOADED()
 	InBags_Frame:UnregisterEvent( "ADDON_LOADED" )
@@ -62,9 +65,18 @@ function InBags.VARIABLES_LOADED()
 	InBags.Print( "Loaded v"..InBags.MSG_VERSION )
 end
 function InBags.onTooltipSetItem( tooltip, tooltipdata )
-	itemID = tonumber(tooltipdata.id)
+	local itemID = tonumber(tooltipdata.id)
+	local addLine = false
+	if InBags.me[itemID] then
+		InBags.lineData = {
+			["leftText"] = "InventoryControl",
+			["rightText"] = (InBags.me[itemID].bags and "Bags: "..InBags.me[itemID].bags.." " or "")
+					..(InBags.me[itemID].bank and "Bank: "..InBags.me[itemID].bank.." " or "")
+		}
+		addLine = true
+	end
 
-
+	if addLine then tooltip:AddLineDataText( InBags.lineData ) end
 end
 function InBags.GetFirstOpenSlot( searchBags )
 	-- Set this up to scan both bags and the bank in the future
@@ -72,7 +84,7 @@ function InBags.GetFirstOpenSlot( searchBags )
 		searchBags = InBags.bagIDs.bags
 	end
 	for _, bag in ipairs( searchBags ) do
-		print( bag )
+		InBags.Debug( 3, "Search bag: "..bag.." for an open slot", false )
 		for slot = 1, C_Container.GetContainerNumSlots( bag ) do
 			local itemStruct = C_Container.GetContainerItemInfo( bag, slot )
 			if not itemStruct then
@@ -90,7 +102,7 @@ function InBags.AddAction( itemID, link, bag, slot, quantity, dest )
 end
 function InBags.BANKFRAME_OPENED()
 	InBags.bankOpen = true
-	InBags.Print( "Bank opened" )
+	InBags.Debug( 2, "Bank opened" )
 	if not InBags.bagIDs.bags then
 		InBags.bagIDs.bags = {}
 		for bag = 0, NUM_BAG_SLOTS+1 do
@@ -99,105 +111,123 @@ function InBags.BANKFRAME_OPENED()
 	end
 	-- make action structure
 	InBags.actions = {}
-
-	for _, bag in pairs( InBags.bagIDs.bags ) do  -- scan your bags
-		for slot = 1, C_Container.GetContainerNumSlots( bag ) do
-			local itemStruct = C_Container.GetContainerItemInfo( bag, slot ) -- get the item info (stackCount is how many are here)
-			if( itemStruct ) then -- an item is found at (bag, slot)
-				local inBags = C_Item.GetItemCount( itemStruct.itemID ) -- only in bags
-				local inBank = C_Item.GetItemCount( itemStruct.itemID, true, false, true ) - inBags -- in bank and reagent Bank
-				local inWBB = C_Item.GetItemCount( itemStruct.itemID, true, false, true, true ) - inBags - inBank
-				local youHave = C_Item.GetItemCount( itemStruct.itemID, true, true, true, true ) -- include bank, uses, reagent, not account
-				-- InBags.Print( itemStruct.itemID.."("..bag..", "..slot.."): bags: "..inBags.." bank: "..inBank.." wbb: "..inWBB.." total: "..youHave  )
-				-- Do I have my target amount in the bags?
-				local wantInBags = ( InBags.me[itemStruct.itemID] and InBags.me[itemStruct.itemID].bags or nil )
-				local wantInBank = ( InBags.me[itemStruct.itemID] and InBags.me[itemStruct.itemID].bank or nil )
-				local wantInWBB = ( InBags_data[itemStruct.itemID] or nil )
-				local countToMove = 0
-				if( wantInBags and wantInBags < inBags or not wantInBags ) then
-					-- I want it in the bags and I have more than needed, or I don't want in bags
-					-- print( "I can move some of "..itemStruct.hyperlink )
-					if( wantInBank and wantInBank > inBank ) then -- put it in the bank
-						print( wantInBank - inBank, inBags - (wantInBags or 0), itemStruct.stackCount )
-						countToMove = math.min( wantInBank - inBank, inBags - (wantInBags or 0), itemStruct.stackCount )
-						InBags.AddAction( itemStruct.itemID, itemStruct.hyperlink, bag, slot, countToMove, "bank" )
-					end
-					if( wantInWBB and wantInWBB > inWBB ) then -- put it in the WBB
-						countToMove = math.min( wantInWBB - inWBB, inBags - (wantInBags or 0) - countToMove, itemStruct.stackCount )
-						InBags.AddAction( itemStruct.itemID, itemStruct.hyperlink, bag, slot, countToMove, "wbb" )
-					end
-				end
-			end
-		end
-	end
-	for _, bag in pairs( InBags.bagIDs.bank ) do
-		for slot = 1, C_Container.GetContainerNumSlots( bag ) do
-			local itemStruct = C_Container.GetContainerItemInfo( bag, slot ) -- get the item info (stackCount is how many are here)
-			if( itemStruct ) then
-				local inBags = C_Item.GetItemCount( itemStruct.itemID ) -- only in bags
-				local inBank = C_Item.GetItemCount( itemStruct.itemID, true, false, true ) - inBags -- in bank and reagent Bank
-				local inWBB = C_Item.GetItemCount( itemStruct.itemID, true, false, true, true ) - inBags - inBank
-				local youHave = C_Item.GetItemCount( itemStruct.itemID, true, true, true, true ) -- include bank, uses, reagent, not account
-				-- InBags.Print( itemStruct.itemID.."("..bag..", "..slot.."): bags: "..inBags.." bank: "..inBank.." wbb: "..inWBB.." total: "..youHave  )
-				-- Do I have my target amount in the bank?
-				local wantInBags = ( InBags.me[itemStruct.itemID] and InBags.me[itemStruct.itemID].bags or nil )
-				local wantInBank = ( InBags.me[itemStruct.itemID] and InBags.me[itemStruct.itemID].bank or nil )
-				local wantInWBB = ( InBags_data[itemStruct.itemID] or nil )
-				local countToMove = 0
-				if( wantInBank and wantInBank < inBank or not wantInBank ) then
-					-- I want it in the bank and I have more than I need, or I don't want it in the bank
-					-- print( "I can move some of "..itemStruct.hyperlink )
-					if( wantInBags and wantInBags > inBags ) then -- put in bags
-						countToMove = math.min( (wantInBags or 0) - inBags, inBank - wantInBank, itemStruct.stackCount )
-						InBags.AddAction( itemStruct.itemID, itemStruct.hyperlink, bag, slot, countToMove, "bags" )
-					end
-					if( wantInWBB and wantInWBB > inWBB ) then -- put it in the WBB
-						countToMove = math.min( wantInWBB - inWBB, inBags - (wantInBags or 0) - countToMove, itemStruct.stackCount )
-						InBags.AddAction( itemStruct.itemID, itemStruct.hyperlink, bag, slot, countToMove, "wbb" )
+	InBags.toScan = "bags"
+	InBags.Scan()
+end
+function InBags.Scan()
+	local markedToMove = {}
+	InBags.Debug( 2, "SCAN: "..InBags.toScan )
+	if InBags.toScan == "bags" then  -- figure out what to move to the bank
+		for _, bag in pairs( InBags.bagIDs.bags ) do -- scan your bags
+			for slot = 1, C_Container.GetContainerNumSlots( bag ) do
+				local itemStruct = C_Container.GetContainerItemInfo( bag, slot ) -- get the item info (stackCount is how many are here)
+				if( itemStruct ) then -- an item is found at (bag, slot)
+					local inBags = C_Item.GetItemCount( itemStruct.itemID ) -- only in bags
+					local inBank = C_Item.GetItemCount( itemStruct.itemID, true, false, true ) - inBags -- in bank and reagent Bank
+					local inWBB = C_Item.GetItemCount( itemStruct.itemID, true, false, true, true ) - inBags - inBank
+					local youHave = C_Item.GetItemCount( itemStruct.itemID, true, true, true, true ) -- include bank, uses, reagent, not account
+					local wantInBags = ( InBags.me[itemStruct.itemID] and InBags.me[itemStruct.itemID].bags or
+							(inWBB > 0 and 0) or nil )
+					local wantInBank = ( InBags.me[itemStruct.itemID] and InBags.me[itemStruct.itemID].bank or nil )
+					markedToMove[itemStruct.itemID] = markedToMove[itemStruct.itemID] or 0
+					local toMove = 0
+					if( wantInBags and wantInBags < inBags or wantInBank ) then
+						toMove = math.min( itemStruct.stackCount, inBags-wantInBags-markedToMove[itemStruct.itemID] )
+						InBags.Debug( 3, itemStruct.hyperlink.." Bags: ("..inBags.."/"..wantInBags..") move: "..toMove.." marked: "..markedToMove[itemStruct.itemID], false )
+						if toMove > 0 then
+							InBags.AddAction( itemStruct.itemID, itemStruct.hyperlink, bag, slot, toMove, "bank" )
+							markedToMove[itemStruct.itemID] = markedToMove[itemStruct.itemID]+toMove
+						end
 					end
 				end
 			end
 		end
-	end
-	for _, bag in pairs( InBags.bagIDs.wbb ) do
-		for slot = 1, C_Container.GetContainerNumSlots( bag ) do
-			local itemStruct = C_Container.GetContainerItemInfo( bag, slot ) -- get the item info (stackCount is how many are here)
-			if( itemStruct ) then
-				local inBags = C_Item.GetItemCount( itemStruct.itemID ) -- only in bags
-				local inBank = C_Item.GetItemCount( itemStruct.itemID, true, false, true ) - inBags -- in bank and reagent Bank
-				local inWBB = C_Item.GetItemCount( itemStruct.itemID, true, false, true, true ) - inBags - inBank
-				local youHave = C_Item.GetItemCount( itemStruct.itemID, true, true, true, true ) -- include bank, uses, reagent, not account
-				-- InBags.Print( itemStruct.itemID.."("..bag..", "..slot.."): bags: "..inBags.." bank: "..inBank.." wbb: "..inWBB.." total: "..youHave  )
-				-- Do I have my target amount in the wbb?
-				local wantInBags = ( InBags.me[itemStruct.itemID] and InBags.me[itemStruct.itemID].bags or nil )
-				local wantInBank = ( InBags.me[itemStruct.itemID] and InBags.me[itemStruct.itemID].bank or nil )
-				local wantInWBB = ( InBags_data[itemStruct.itemID] or nil )
-				local countToMove = 0
-				-- I want it in the bank and I have more than I need, or I don't want it in the bank
-				-- print( "I can move some of "..itemStruct.hyperlink )
-				if( wantInBags and wantInBags > inBags and countToMove ) then -- put in bags
-					countToMove = wantInBags - inBags
-					InBags.Print( itemStruct.itemID.."("..bag..", "..slot.."): bags: "..inBags.." bank: "..inBank.." wbb: "..inWBB.." total: "..youHave  )
-					print( "I think I want to move "..countToMove.." to my bags.")
-					InBags.AddAction( itemStruct.itemID, itemStruct.hyperlink, bag, slot, countToMove, "bags" )
-				end
-				if( wantInBank and wantInBank > inBank ) then -- put it in the WBB
-					countToMove = math.min( wantInBank - inBank, inBags - wantInBags - countToMove )
-					InBags.AddAction( itemStruct.itemID, itemStruct.hyperlink, bag, slot, countToMove, "bank" )
+		InBags.toScan = "bank"
+	elseif InBags.toScan == "bank" then  -- figure out what to move to the bags or the WBB
+		for _, bag in pairs( InBags.bagIDs.bank ) do
+			for slot = 1, C_Container.GetContainerNumSlots( bag ) do
+				local itemStruct = C_Container.GetContainerItemInfo( bag, slot )
+				if( itemStruct ) then
+					local inBags = C_Item.GetItemCount( itemStruct.itemID ) -- only in bags
+					local inBank = C_Item.GetItemCount( itemStruct.itemID, true, false, true ) - inBags -- in bank and reagent Bank
+					local inWBB = C_Item.GetItemCount( itemStruct.itemID, true, false, true, true ) - inBags - inBank
+					local youHave = C_Item.GetItemCount( itemStruct.itemID, true, true, true, true ) -- include bank, uses, reagent, not account
+					local wantInBags = ( InBags.me[itemStruct.itemID] and InBags.me[itemStruct.itemID].bags or
+							(inWBB > 0 and 0) or nil )
+					local wantInBank = ( InBags.me[itemStruct.itemID] and InBags.me[itemStruct.itemID].bank or
+							(inWBB > 0 and 0) or nil )
+					local wantInWBB = (inWBB > 0)
+					markedToMove[itemStruct.itemID] = markedToMove[itemStruct.itemID] or 0
+					local toMove = 0
+					if( wantInBank and wantInBank < inBank or not wantInBank ) then
+						-- I want it in the bank and I have more than I want, or I don't want it in the bank
+						if( wantInBags and inBags < wantInBags ) then -- put some in bags
+							toMove = math.min( itemStruct.stackCount, wantInBags-inBags-markedToMove[itemStruct.itemID] )
+							InBags.Debug( 3, itemStruct.hyperlink.." Bags: ("..inBags.."/"..wantInBags..") toBags: "..toMove.." marked: "..markedToMove[itemStruct.itemID], false )
+							if toMove > 0 then
+								InBags.AddAction( itemStruct.itemID, itemStruct.hyperlink, bag, slot, toMove, "bags" )
+								markedToMove[itemStruct.itemID] = markedToMove[itemStruct.itemID]+toMove
+							end
+						end
+						if( wantInWBB ) then -- put some in the wbb
+							toMove = math.min( itemStruct.stackCount, inBank-wantInBank-markedToMove[itemStruct.itemID] )
+							InBags.Debug( 3, itemStruct.hyperlink.." Bank: ("..inBank.."/"..wantInBank..") toWBB: "..toMove.." marked: "..markedToMove[itemStruct.itemID], false )
+							if toMove > 0 then
+								InBags.AddAction( itemStruct.itemID, itemStruct.hyperlink, bag, slot, toMove, "wbb" )
+								markedToMove[itemStruct.itemID] = markedToMove[itemStruct.itemID]+toMove
+							end
+						end
+					end
 				end
 			end
 		end
+		InBags.toScan = "wbb"
+	elseif InBags.toScan == "wbb" then
+		for _, bag in pairs( InBags.bagIDs.wbb ) do
+			for slot = 1, C_Container.GetContainerNumSlots( bag ) do
+				local itemStruct = C_Container.GetContainerItemInfo( bag, slot )
+				if( itemStruct ) then
+					local inBags = C_Item.GetItemCount( itemStruct.itemID ) -- only in bags
+					local inBank = C_Item.GetItemCount( itemStruct.itemID, true, false, true ) - inBags -- in bank and reagent Bank
+					local inWBB = C_Item.GetItemCount( itemStruct.itemID, true, false, true, true ) - inBags - inBank
+					local youHave = C_Item.GetItemCount( itemStruct.itemID, true, true, true, true ) -- include bank, uses, reagent, not account
+					local wantInBags = ( InBags.me[itemStruct.itemID] and InBags.me[itemStruct.itemID].bags or
+							(inWBB > 0 and 0) or nil )
+					local wantInBank = ( InBags.me[itemStruct.itemID] and InBags.me[itemStruct.itemID].bank or
+							(inWBB > 0 and 0) or nil )
+					-- InBags.Print( itemStruct.itemID.."("..bag..", "..slot.."): bags: "..inBags.." bank: "..inBank.." wbb: "..inWBB.." total: "..youHave  )
+					markedToMove[itemStruct.itemID] = markedToMove[itemStruct.itemID] or 0
+					local toMove = 0
+					if( wantInBags and inBags < wantInBags ) then
+						toMove = math.min( itemStruct.stackCount, wantInBags-inBags-markedToMove[itemStruct.itemID] )
+						InBags.Debug( 3, itemStruct.hyperlink.." Bags: ("..inBags.."/"..wantInBags..") toBags: "..toMove.." marked: "..markedToMove[itemStruct.itemID], false )
+						if toMove > 0 then
+							InBags.AddAction( itemStruct.itemID, itemStruct.hyperlink, bag, slot, toMove, "bags" )
+							markedToMove[itemStruct.itemID] = markedToMove[itemStruct.itemID]+toMove
+						end
+					end
+					if( wantInBank and inBank < wantInBags ) then
+						toMove = math.min( itemStruct.stackCount, wantInBank-inBank-markedToMove[itemStruct.itemID] )
+						InBags.Debug( 3, itemStruct.hyperlink.." Bank: ("..inBank.."/"..wantInBank..") toBank: "..toMove.." marked: "..markedToMove[itemStruct.itemID], false )
+						if toMove > 0 then
+							InBags.AddAction( itemStruct.itemID, itemStruct.hyperlink, bag, slot, toMove, "bank" )
+							markedToMove[itemStruct.itemID] = markedToMove[itemStruct.itemID]+toMove
+						end
+					end
+				end
+			end
+		end
+		InBags.toScan = nil
 	end
-	print("Scan ended:")
+	InBags.Debug( 3, "Scan ended:" )
 	InBags.BAG_UPDATE( nil, nil )
 end
-
 function InBags.BAG_UPDATE( self, bagID )
 	if InBags.bankOpen then
-		print( "BAG_UPDATE: "..( bagID or "nil" ) )
+		InBags.Debug( 3, "BAG_UPDATE: "..( bagID or "nil" ) )
 		for i, a in ipairs( InBags.actions ) do
-			print( string.format( "%i: move %2i of %s at (%i,%i) to %s",
-					i, a.quantity, a.link, a.bag, a.slot, a.dest ) )
+			InBags.Debug(3, string.format( "%i: move %2i of %s at (%i,%i) to %s",
+					i, a.quantity, a.link, a.bag, a.slot, a.dest ), false )
 		end
 		local idx
 		local action
@@ -217,10 +247,10 @@ function InBags.BAG_UPDATE( self, bagID )
 			if itemStruct then
 				ClearCursor()
 				targetBag, targetSlot = InBags.GetFirstOpenSlot( InBags.bagIDs[action.dest] )
-				print( "Search "..action.dest.." for an open slot. Got ("..(targetBag or "nil")..", "..(targetSlot or "nil")..")" )
+				InBags.Debug( 3, "Search "..action.dest.." for an open slot. Got ("..(targetBag or "nil")..", "..(targetSlot or "nil")..")" )
 				if targetBag and targetSlot then
-					print( string.format( "%i: move %2i of %s at (%i,%i) to %s (%i,%i)",
-							idx, action.quantity, action.link, action.bag, action.slot, action.dest, targetBag, targetSlot ) )
+					InBags.Debug( 1, string.format( "Move %2i of %s from (%i,%i) to %s (%i,%i)",
+							action.quantity, action.link, action.bag, action.slot, action.dest, targetBag, targetSlot ) )
 					if( action.quantity < itemStruct.stackCount ) then -- split
 						C_Container.SplitContainerItem( action.bag, action.slot, action.quantity )
 						C_Container.PickupContainerItem( targetBag, targetSlot )
@@ -231,22 +261,18 @@ function InBags.BAG_UPDATE( self, bagID )
 				end
 				table.remove( InBags.actions, idx )
 			end
+		else
+			if InBags.toScan then
+				InBags.Scan()
+			end
 		end
-		print( "BAG_UPDATE DONE: "..(idx or "nil") )
+		InBags.Debug( 3, "BAG_UPDATE DONE: "..(idx or "nil") )
 	end
 end
 function InBags.BANKFRAME_CLOSED()
-	InBags.Print( "Bank closed" )
+	InBags.Debug( 2, "Bank closed" )
 	InBags.bankOpen = nil
 	InBags.actions = {}
-end
--- function InBags.PLAYER_LEAVING_WORLD()
--- end
-function InBags.WBB( params )
-	-- print( "WBB( "..params.." )" )
-	local itemID, quantity = InBags.ParseParameters( params )
-	-- print( itemID, type( itemID ), quantity )
-	InBags_data[itemID] = ( quantity > 0) and quantity or nil
 end
 function InBags.Bank( params )
 	-- print( "Bank( "..params.." )" )
@@ -254,6 +280,7 @@ function InBags.Bank( params )
 	-- print( itemID, type( itemID ), quantity )
 	InBags.me[itemID] = InBags.me[itemID] or {}
 	InBags.me[itemID].bank = (quantity > 0) and quantity or nil
+	InBags.Print( "Will try to maintain "..quantity.." in your BANK" )
 end
 function InBags.Bags( params )
 	-- print( "Bags( "..params.." )" )
@@ -261,39 +288,8 @@ function InBags.Bags( params )
 	-- print( itemID, type( itemID ), quantity )
 	InBags.me[itemID] = InBags.me[itemID] or {}
 	InBags.me[itemID].bags = (quantity > 0) and quantity or nil
+	InBags.Print( "Will try to maintain "..quantity.." in your BAGS" )
 end
-
--- function InBags.AddItem( itemLink, p2 )
--- 	-- print( itemLink..":"..p2 )
--- 	quantity = p2 and tonumber(p2) or 1
--- 	local itemID = InBags.getItemIdFromLink( itemLink )
--- 	if itemID and string.len( itemID ) > 0 then
--- 		local youHave = GetItemCount( itemID, true ) -- include bank
--- 		local inBags = GetItemCount( itemID, false ) -- only in bags
--- 		InBags.Print( string.format( "You have %d (%d in bank), and you want %d in your bags.", youHave, youHave-inBags, quantity ) )
--- 		if (INEED and INEED.AddItem and quantity>youHave) then
--- 			INEED.AddItem( itemLink, quantity )
--- 		end
--- 		InBags.me[tonumber(itemID)] = {["inBags"] = quantity}
--- 	end
--- end
--- function InBags.List()
--- 	for itemID, struct in pairs( InBags.me ) do
--- 		link = select( 2, GetItemInfo( itemID ) )
--- 		InBags.Print( string.format( "%s inBags: %d", link, struct.inBags ) )
--- 	end
--- end
--- function InBags.Delete( itemLink )
--- 	print( "delete "..itemLink )
--- 	local itemID = InBags.getItemIdFromLink( itemLink )
--- 	if itemID and string.len( itemID ) > 0 then
--- 		itemID = tonumber(itemID)
--- 		if InBags.me[itemID] then
--- 			InBags.me[itemID] = nil
--- 		end
--- 	end
--- end
-
 function InBags.getItemIdFromLink( itemLink )
 	-- returns just the integer itemID
 	-- itemLink can be a full link, or just "item:999999999"
@@ -335,15 +331,10 @@ function InBags.PrintHelp()
 			SLASH_IC1, cmd, info.help[1], info.help[2]))
 	end
 end
-
 InBags.commandList = {
 	["help"] = {
 		["func"] = InBags.PrintHelp,
 		["help"] = {"", "Print this help"},
-	},
-	["wbb"] = {
-		["func"] = InBags.WBB,
-		["help"] = { "[itemLink] quantity", "Keep quantity in your warband bank." },
 	},
 	["bank"] = {
 		["func"] = InBags.Bank,
@@ -352,5 +343,9 @@ InBags.commandList = {
 	["bags"] = {
 		["func"] = InBags.Bags,
 		["help"] = { "[itemLink] quantity", "Keep quantity in your bags." },
+	},
+	["v"] = {
+		["func"] = function( v ) InBags.verbosity = v end,
+		["help"] = { "level", "Set verbosity (0-3)" },
 	},
 }
