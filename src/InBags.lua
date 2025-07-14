@@ -112,7 +112,9 @@ function InBags.GetFirstOpenSlot( searchBags )
 		InBags.Debug( 3, "Search bag: "..bag.." for an open slot", false )
 		for slot = 1, C_Container.GetContainerNumSlots( bag ) do
 			local itemStruct = C_Container.GetContainerItemInfo( bag, slot )
-			if not itemStruct then
+			if not itemStruct and ( not InBags.usedSlots[bag] or not InBags.usedSlots[bag][slot] ) then
+				InBags.usedSlots[bag] = InBags.usedSlots[bag] or {}
+				InBags.usedSlots[bag][slot] = true
 				return bag, slot
 			end
 		end
@@ -152,9 +154,12 @@ function InBags.BANKFRAME_OPENED()
 	InBags.BuildGearSets()
 	-- make action structure
 	InBags.actions = {}
+	InBags.usedSlots = {}
 	if IsShiftKeyDown() then
 		InBags.toScan = "bags"
 		InBags.Scan()
+	else
+		InBags.Print( "Hold shift when opening the bang for automatic inventory control." )
 	end
 end
 function InBags.Scan()
