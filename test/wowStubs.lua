@@ -1386,6 +1386,8 @@ function IsFlying()
 end
 function IsMounted()
 end
+function IsShiftKeyDown()
+end
 function GetCritChance()
 	return 25.42345
 end

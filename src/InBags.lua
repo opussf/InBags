@@ -49,7 +49,7 @@ function InBags.OnLoad()
 	InBags_Frame:RegisterEvent( "VARIABLES_LOADED" )
 	InBags_Frame:RegisterEvent( "BANKFRAME_OPENED" )
 	InBags_Frame:RegisterEvent( "BANKFRAME_CLOSED" )
-	InBags_Frame:RegisterEvent( "BAG_UPDATE" )
+	InBags_Frame:RegisterEvent( "BAG_UPDATE_DELAYED" )
 	InBags_Frame:RegisterEvent( "PLAYER_LEAVING_WORLD" )
 end
 function InBags.ADDON_LOADED()
@@ -118,6 +118,21 @@ function InBags.GetFirstOpenSlot( searchBags )
 		end
 	end
 end
+function InBags.BuildGearSets()
+	InBags.itemsInSets = {}
+	for setNum = 0, C_EquipmentSet.GetNumEquipmentSets(), 1 do
+		equipmentSetName = C_EquipmentSet.GetEquipmentSetInfo( setNum )
+		if( equipmentSetName ) then
+			local setItemArray = C_EquipmentSet.GetItemIDs( setNum )
+			for i, itemID in pairs( setItemArray ) do
+				if( not InBags.itemsInSets[itemID] ) then
+					InBags.itemsInSets[itemID] = {}
+				end
+				table.insert( InBags.itemsInSets[itemID], equipmentSetName )
+			end
+		end
+	end
+end
 ----
 function InBags.AddAction( itemID, link, bag, slot, quantity, dest )
 	-- this adds an action to the InBags.actions
@@ -134,10 +149,13 @@ function InBags.BANKFRAME_OPENED()
 			table.insert( InBags.bagIDs.bags, bag )
 		end
 	end
+	InBags.BuildGearSets()
 	-- make action structure
 	InBags.actions = {}
-	InBags.toScan = "bags"
-	InBags.Scan()
+	if IsShiftKeyDown() then
+		InBags.toScan = "bags"
+		InBags.Scan()
+	end
 end
 function InBags.Scan()
 	local markedToMove = {}
@@ -151,8 +169,8 @@ function InBags.Scan()
 					local inBank = C_Item.GetItemCount( itemStruct.itemID, true, false, true ) - inBags -- in bank and reagent Bank
 					local inWBB = C_Item.GetItemCount( itemStruct.itemID, true, false, true, true ) - inBags - inBank
 					local youHave = C_Item.GetItemCount( itemStruct.itemID, true, true, true, true ) -- include bank, uses, reagent, not account
-					local wantInBags = ( InBags.me[itemStruct.itemID] and InBags.me[itemStruct.itemID].bags or
-							(inWBB > 0 and 0) or nil )
+					local wantInBags = ( not InBags.itemsInSets[itemStruct.itemID] and InBags.me[itemStruct.itemID] and
+							InBags.me[itemStruct.itemID].bags or (inWBB > 0 and 0) or nil )
 					local wantInBank = ( InBags.me[itemStruct.itemID] and InBags.me[itemStruct.itemID].bank or nil )
 					markedToMove[itemStruct.itemID] = markedToMove[itemStruct.itemID] or 0
 					local toMove = 0
@@ -181,7 +199,7 @@ function InBags.Scan()
 							(inWBB > 0 and 0) or nil )
 					local wantInBank = ( InBags.me[itemStruct.itemID] and InBags.me[itemStruct.itemID].bank or
 							(inWBB > 0 and 0) or nil )
-					local wantInWBB = (inWBB > 0)
+					local wantInWBB = ( not InBags.itemsInSets[itemStruct.itemID] and (inWBB > 0) )
 					markedToMove[itemStruct.itemID] = markedToMove[itemStruct.itemID] or 0
 					local toMove = 0
 					if( wantInBank and wantInBank < inBank or not wantInBank ) then
@@ -194,7 +212,7 @@ function InBags.Scan()
 								markedToMove[itemStruct.itemID] = markedToMove[itemStruct.itemID]+toMove
 							end
 						end
-						if( wantInWBB ) then -- put some in the wbb
+						if( wantInWBB and not InBags.itemsInSets[itemStruct.itemID] ) then -- put some in the wbb
 							toMove = math.min( itemStruct.stackCount, inBank-wantInBank-markedToMove[itemStruct.itemID] )
 							InBags.Debug( 3, itemStruct.hyperlink.." Bank: ("..inBank.."/"..wantInBank..") toWBB: "..toMove.." marked: "..markedToMove[itemStruct.itemID], false )
 							if toMove > 0 then
@@ -245,9 +263,9 @@ function InBags.Scan()
 		InBags.toScan = nil
 	end
 	InBags.Debug( 3, "Scan ended:" )
-	InBags.BAG_UPDATE( nil, nil )
+	InBags.BAG_UPDATE_DELAYED( nil, nil )
 end
-function InBags.BAG_UPDATE( self, bagID )
+function InBags.BAG_UPDATE_DELAYED( self, bagID )
 	if InBags.bankOpen then
 		InBags.Debug( 3, "BAG_UPDATE: "..( bagID or "nil" ) )
 		for i, a in ipairs( InBags.actions ) do
@@ -285,7 +303,8 @@ function InBags.BAG_UPDATE( self, bagID )
 						C_Container.PickupContainerItem( targetBag, targetSlot )
 					end
 				else
-					InBags.Print( "No Free slots found in "..action.dest.."." )
+					InBags.Print( "Error moving "..action.link.." ("..action.bag..", "..action.slot..") to "..action.dest..": No free slots." )
+					-- InBags.Print( "No Free slots found in "..action.dest.."." )
 					InBags.actions = {}
 					InBags.toScan = action.dest
 					InBags.Scan()
@@ -380,7 +399,7 @@ InBags.commandList = {
 		["help"] = { "[itemLink]", "Ignore this item for all chars"},
 	},
 	["v"] = {
-		["func"] = function( v ) InBags.verbosity = v end,
+		["func"] = function( v ) InBags.verbosity = tonumber(v) end,
 		["help"] = { "level", "Set verbosity (0-3)" },
 	},
 }
