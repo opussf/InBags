@@ -51,6 +51,21 @@ function InBags.OnLoad()
 	InBags_Frame:RegisterEvent( "BANKFRAME_CLOSED" )
 	InBags_Frame:RegisterEvent( "BAG_UPDATE_DELAYED" )
 	InBags_Frame:RegisterEvent( "PLAYER_LEAVING_WORLD" )
+
+	local b = CreateFrame( "Button", "ICButton", BankFrame, "UIPanelButtonTemplate" )
+	b:SetSize(26,26)
+	b:SetPoint( "LEFT", BankFrame, "RIGHT", 0, -4 )
+	local i = b:CreateTexture( nil, "ARTWORK" )
+	i:SetAllPoints()
+	i:SetTexture( "Interface/ICONS/INV_Misc_Gear_01" )
+
+	-- i:SetDesaturated( true )
+	b:SetScript( "OnEnter", function()
+		GameTooltip:SetOwner(b, "ANCHOR_RIGHT")
+		GameTooltip:SetText( "Inventory Control - Auto move items" )
+	end )
+	b:SetScript( "OnLeave", GameTooltip_Hide )
+	b:SetScript( "OnClick", InBags.SetUpScan )
 end
 function InBags.ADDON_LOADED()
 	InBags_Frame:UnregisterEvent( "ADDON_LOADED" )
@@ -156,11 +171,14 @@ function InBags.BANKFRAME_OPENED()
 	InBags.actions = {}
 	InBags.usedSlots = {}
 	if IsShiftKeyDown() then
-		InBags.toScan = "bags"
-		InBags.Scan()
+		InBags.SetUpScan()
 	else
 		InBags.Print( "Hold shift when opening the bang for automatic inventory control." )
 	end
+end
+function InBags.SetUpScan()
+	InBags.toScan = "bags"
+	InBags.Scan()
 end
 function InBags.Scan()
 	local markedToMove = {}

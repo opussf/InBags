@@ -620,6 +620,8 @@ function CreateSlider( name, ... )
 	Slider.GetValue = function() return 2  end
 	return Slider
 end
+function CreateTexture( )
+end
 CheckButton = {
 		["SetChecked"] = function(self,value) self.isChecked=value; end,
 }
@@ -681,6 +683,7 @@ UIErrorsFrame={ ["AddMessage"] = function( self, msg )
 		)
 	end, }
 WeeklyRewardsFrame = CreateFrame()
+BankFrame = CreateFrame()
 
 -- stub some external API functions (try to keep alphabetical)
 function BuyMerchantItem( index, quantity )
